@@ -1,0 +1,98 @@
+{
+  "jobs": [
+    {
+      "id": 7001,
+      "internal_job_id": 17001,
+      "title": "Senior Data Engineer",
+      "updated_at": "2026-08-18T10:55:28Z",
+      "requisition_id": "DATA-101",
+      "location": {
+        "name": "London, United Kingdom"
+      },
+      "absolute_url": "https://job-boards.greenhouse.io/example/jobs/7001",
+      "language": "en",
+      "metadata": [
+        {
+          "id": 1,
+          "name": "Employment Type",
+          "value": "Permanent"
+        }
+      ],
+      "content": "&lt;p&gt;Join the data platform group and help deliver dependable datasets to teams across the organisation.&lt;/p&gt;&lt;h2&gt;What you will do&lt;/h2&gt;&lt;ul&gt;&lt;li&gt;Design and operate batch and streaming pipelines using Python and SQL.&lt;/li&gt;&lt;li&gt;Improve data quality, observability, deployment automation, and production support.&lt;/li&gt;&lt;li&gt;Work with analysts and application engineers on clear data contracts.&lt;/li&gt;&lt;/ul&gt;&lt;h2&gt;What we need&lt;/h2&gt;&lt;p&gt;You have experience delivering production data systems, reviewing technical designs, explaining trade-offs, and improving services over time. Cloud platform and infrastructure-as-code experience would be useful.&lt;/p&gt;",
+      "departments": [
+        {
+          "id": 101,
+          "name": "Data Engineering",
+          "parent_id": null,
+          "child_ids": []
+        }
+      ],
+      "offices": [
+        {
+          "id": 201,
+          "name": "London",
+          "location": "London, United Kingdom",
+          "parent_id": null,
+          "child_ids": []
+        }
+      ]
+    },
+    {
+      "id": 7002,
+      "internal_job_id": 17002,
+      "title": "Product Manager",
+      "updated_at": "2026-08-17T09:00:00Z",
+      "requisition_id": "PROD-201",
+      "location": {
+        "name": "Remote - United Kingdom"
+      },
+      "absolute_url": "https://job-boards.greenhouse.io/example/jobs/7002",
+      "language": "en",
+      "metadata": null,
+      "content": "&lt;p&gt;Lead a product team, define its roadmap, and work with customers to understand their needs.&lt;/p&gt;",
+      "departments": [
+        {
+          "id": 102,
+          "name": "Product",
+          "parent_id": null,
+          "child_ids": []
+        }
+      ],
+      "offices": []
+    },
+    {
+      "id": 7003,
+      "internal_job_id": 17003,
+      "title": "Junior Data Engineer",
+      "updated_at": "2026-08-16T08:00:00Z",
+      "requisition_id": "DATA-102",
+      "location": {
+        "name": "Manchester, United Kingdom"
+      },
+      "absolute_url": "https://job-boards.greenhouse.io/example/jobs/7003",
+      "language": "en",
+      "metadata": null,
+      "content": "&lt;p&gt;Apply now. Python and SQL required.&lt;/p&gt;",
+      "departments": [
+        {
+          "id": 101,
+          "name": "Data Engineering",
+          "parent_id": null,
+          "child_ids": []
+        }
+      ],
+      "offices": [
+        {
+          "id": 202,
+          "name": "Manchester",
+          "location": "Manchester, United Kingdom",
+          "parent_id": null,
+          "child_ids": []
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "total": 3
+  }
+}

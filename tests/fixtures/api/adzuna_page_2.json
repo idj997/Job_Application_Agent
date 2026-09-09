@@ -1,0 +1,23 @@
+{
+  "count": 3,
+  "results": [
+    {
+      "id": "503",
+      "title": "Junior Data Engineer",
+      "description": "Apply now for this data role.",
+      "created": "2026-08-16T08:00:00Z",
+      "redirect_url": "https://www.adzuna.co.uk/jobs/land/ad/503?v=token-503",
+      "contract_time": "full_time",
+      "company": {
+        "display_name": "Short Listing Ltd"
+      },
+      "location": {
+        "area": ["UK", "Scotland", "Edinburgh"]
+      },
+      "category": {
+        "label": "IT Jobs",
+        "tag": "it-jobs"
+      }
+    }
+  ]
+}

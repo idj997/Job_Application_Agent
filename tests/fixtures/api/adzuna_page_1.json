@@ -1,0 +1,53 @@
+{
+  "count": 3,
+  "results": [
+    {
+      "id": "501",
+      "title": "Senior Data Engineer",
+      "description": "Build and operate dependable data products for teams across the organisation. You will design batch and streaming pipelines using Python and SQL, improve observability, automate deployment and testing, and work closely with analysts and application engineers. The role requires experience delivering production data systems, explaining technical trade-offs, and responding pragmatically to operational issues. Cloud platform and infrastructure-as-code experience would be beneficial.",
+      "created": "2026-08-18T09:30:00Z",
+      "redirect_url": "https://www.adzuna.co.uk/jobs/land/ad/501?utm_source=api&v=token-501",
+      "salary_min": 60000,
+      "salary_max": 75000,
+      "salary_is_predicted": 0,
+      "contract_time": "full_time",
+      "contract_type": "permanent",
+      "company": {
+        "display_name": "Example Data Ltd"
+      },
+      "location": {
+        "display_name": "London",
+        "area": ["UK", "London"]
+      },
+      "category": {
+        "label": "IT Jobs",
+        "tag": "it-jobs"
+      },
+      "latitude": 51.5074,
+      "longitude": -0.1278
+    },
+    {
+      "id": "502",
+      "title": "Data Platform Engineer",
+      "description": "Join a growing engineering group responsible for the shared data platform. You will build ingestion services, maintain data contracts, help teams publish trustworthy datasets, and improve monitoring across the platform. Applicants should have strong SQL and Python skills and practical experience with cloud data warehouses, orchestration tools, automated tests, and code review. You will collaborate with security and governance colleagues while preserving a fast delivery cadence.",
+      "created": "2026-08-17T12:00:00Z",
+      "redirect_url": "https://www.adzuna.co.uk/jobs/land/ad/502?utm_medium=api&v=token-502",
+      "salary_min": 65000,
+      "salary_max": 65000,
+      "salary_is_predicted": 1,
+      "contract_time": "full_time",
+      "contract_type": "permanent",
+      "company": {
+        "display_name": "Platform Example"
+      },
+      "location": {
+        "display_name": "Bristol, South West England",
+        "area": ["UK", "South West England", "Bristol"]
+      },
+      "category": {
+        "label": "IT Jobs",
+        "tag": "it-jobs"
+      }
+    }
+  ]
+}

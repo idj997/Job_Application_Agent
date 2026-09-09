@@ -1,0 +1,45 @@
+{
+  "0-legal-notice": "Remotive API Legal Notice",
+  "job-count": 3,
+  "jobs": [
+    {
+      "id": 901,
+      "url": "https://remotive.com/remote-jobs/software-dev/senior-data-engineer-901",
+      "title": "Senior Data Engineer",
+      "company_name": "Remote Example",
+      "company_logo": "https://remotive.com/job/901/logo",
+      "category": "Software Development",
+      "job_type": "full_time",
+      "publication_date": "2026-08-18T10:23:26",
+      "candidate_required_location": "Worldwide",
+      "salary": "$80,000 - $100,000",
+      "description": "<p>Join our remote data platform group and build dependable services for teams across the company.</p><h2>Responsibilities</h2><ul><li>Design batch and streaming pipelines using Python and SQL.</li><li>Improve data quality, monitoring, deployment automation, and operational support.</li><li>Partner with analysts and engineers on clear data contracts.</li></ul><h2>Requirements</h2><p>You have experience delivering production data systems, reviewing technical designs, explaining trade-offs, and working effectively in a distributed team. Cloud and infrastructure-as-code experience would be useful.</p>"
+    },
+    {
+      "id": 902,
+      "url": "https://remotive.com/remote-jobs/product/product-manager-902",
+      "title": "Product Manager",
+      "company_name": "Remote Product Co",
+      "company_logo": "https://remotive.com/job/902/logo",
+      "category": "Product",
+      "job_type": "full_time",
+      "publication_date": "2026-08-17T09:00:00",
+      "candidate_required_location": "Europe",
+      "salary": "",
+      "description": "<p>Lead a distributed product team and define its roadmap with customers.</p>"
+    },
+    {
+      "id": 903,
+      "url": "https://remotive.com/remote-jobs/software-dev/junior-data-engineer-903",
+      "title": "Junior Data Engineer",
+      "company_name": "Short Remote Listing",
+      "company_logo": "https://remotive.com/job/903/logo",
+      "category": "Software Development",
+      "job_type": "contract",
+      "publication_date": "2026-08-16T08:00:00",
+      "candidate_required_location": "UK",
+      "salary": "£350 per day",
+      "description": "<p>Apply now. Python required.</p>"
+    }
+  ]
+}

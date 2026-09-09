@@ -1,0 +1,63 @@
+[
+  {
+    "id": "lever-501",
+    "text": "Senior Data Engineer",
+    "categories": {
+      "commitment": "Full-time",
+      "department": "Engineering",
+      "team": "Data Platform",
+      "location": "London, United Kingdom",
+      "allLocations": [
+        "London, United Kingdom",
+        "Remote - United Kingdom"
+      ]
+    },
+    "country": "GB",
+    "description": "<p>Join our data platform group and build dependable services used by teams across the organisation.</p><p>You will design batch and streaming pipelines, improve observability, automate deployment and testing, and partner with analysts and application engineers on clear data contracts.</p>",
+    "descriptionPlain": "Join our data platform group and build dependable services used by teams across the organisation.",
+    "lists": [
+      {
+        "text": "What you will do",
+        "content": "<li>Build production pipelines using Python and SQL.</li><li>Improve data quality and production monitoring.</li><li>Review designs and explain technical trade-offs.</li>"
+      },
+      {
+        "text": "What we are looking for",
+        "content": "<li>Experience delivering production data systems.</li><li>Strong collaboration and communication skills.</li><li>Cloud and infrastructure-as-code experience is useful.</li>"
+      }
+    ],
+    "additional": "<p>We welcome applicants from a wide range of backgrounds and experiences.</p>",
+    "additionalPlain": "We welcome applicants from a wide range of backgrounds and experiences.",
+    "hostedUrl": "https://jobs.lever.co/example/lever-501",
+    "applyUrl": "https://jobs.lever.co/example/lever-501/apply",
+    "workplaceType": "hybrid",
+    "salaryRange": {
+      "currency": "GBP",
+      "interval": "per-year-salary",
+      "min": 65000,
+      "max": 80000
+    },
+    "salaryDescription": "<p>Depending on experience.</p>",
+    "salaryDescriptionPlain": "Depending on experience.",
+    "createdAt": 1786992971000
+  },
+  {
+    "id": "lever-502",
+    "text": "Product Manager",
+    "categories": {
+      "commitment": "Full-time",
+      "department": "Product",
+      "team": "Core Product",
+      "location": "Bristol, United Kingdom",
+      "allLocations": ["Bristol, United Kingdom"]
+    },
+    "country": "GB",
+    "description": "<p>Lead a product team and define its roadmap.</p>",
+    "descriptionPlain": "Lead a product team and define its roadmap.",
+    "lists": [],
+    "additional": "",
+    "additionalPlain": "",
+    "hostedUrl": "https://jobs.lever.co/example/lever-502",
+    "applyUrl": "https://jobs.lever.co/example/lever-502/apply",
+    "workplaceType": "on-site"
+  }
+]

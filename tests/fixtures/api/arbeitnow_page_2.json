@@ -1,0 +1,39 @@
+{
+  "data": [
+    {
+      "id": 201,
+      "slug": "senior-data-engineer-edinburgh-201",
+      "company_name": "Cloud Example",
+      "title": "Senior Data Engineer",
+      "description": "<p>We are expanding the engineering team responsible for a modern cloud data platform serving customers across the United Kingdom.</p><h2>Responsibilities</h2><p>You will design reliable ingestion services, model complex datasets, automate deployments, and partner with software teams on well-defined data contracts. You will also mentor colleagues and take part in an on-call rota.</p><h2>Experience</h2><p>Strong Python and SQL skills are essential. Experience with distributed processing, infrastructure as code, automated testing, and production monitoring is important. Experience in a regulated environment would be useful but is not required.</p>",
+      "remote": false,
+      "visa_sponsorship": false,
+      "url": "https://www.arbeitnow.co.uk/jobs/companies/cloud-example/senior-data-engineer-edinburgh-201",
+      "tags": ["Python", "Cloud", "Data Engineer"],
+      "job_types": ["permanent", "full_time"],
+      "location": "Edinburgh, United Kingdom",
+      "created_at": "2026-08-03T09:00:00Z"
+    },
+    {
+      "id": 202,
+      "slug": "junior-data-engineer-london-202",
+      "company_name": "Tiny Listing Ltd",
+      "title": "Junior Data Engineer",
+      "description": "<p>Apply now. Python and SQL required.</p>",
+      "remote": false,
+      "visa_sponsorship": false,
+      "url": "https://www.arbeitnow.co.uk/jobs/companies/tiny-listing/junior-data-engineer-london-202",
+      "tags": ["Data"],
+      "job_types": ["full_time"],
+      "location": "London, United Kingdom",
+      "created_at": "2026-08-04T09:00:00Z"
+    }
+  ],
+  "links": {
+    "next": null
+  },
+  "meta": {
+    "current_page": 2,
+    "last_page": 2
+  }
+}

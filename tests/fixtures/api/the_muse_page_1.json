@@ -1,0 +1,27 @@
+{
+  "page_count": 2,
+  "page": 1,
+  "results": [
+    {
+      "contents": "<p>Apply now. Python and SQL required.</p>",
+      "name": "Junior Data Engineer",
+      "type": "external",
+      "publication_date": "2026-08-16T10:00:00Z",
+      "short_name": "junior-data-engineer",
+      "model_type": "jobs",
+      "id": 803,
+      "locations": [{"name": "London, United Kingdom"}],
+      "categories": [{"name": "Data and Analytics"}],
+      "levels": [{"name": "Entry Level", "short_name": "entry"}],
+      "tags": ["Python"],
+      "refs": {
+        "landing_page": "https://www.themuse.com/jobs/example/junior-data-engineer"
+      },
+      "company": {
+        "id": 92,
+        "name": "Short Listing Ltd",
+        "short_name": "short-listing"
+      }
+    }
+  ]
+}

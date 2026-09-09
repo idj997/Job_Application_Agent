@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "role_families": {
+    "data_engineering": {
+      "display_name": "Data Engineering",
+      "queries": [
+        "data engineer",
+        "analytics engineer",
+        "data platform engineer",
+        "ETL engineer"
+      ]
+    },
+    "data_science": {
+      "display_name": "Data Science",
+      "queries": [
+        "data scientist",
+        "applied scientist",
+        "decision scientist",
+        "research data scientist"
+      ]
+    },
+    "ai_engineering": {
+      "display_name": "AI Engineering",
+      "queries": [
+        "AI engineer",
+        "artificial intelligence engineer",
+        "AI platform engineer",
+        "AI infrastructure engineer"
+      ]
+    },
+    "machine_learning": {
+      "display_name": "Machine Learning Engineering",
+      "queries": [
+        "machine learning engineer",
+        "ML engineer",
+        "MLOps engineer",
+        "machine learning platform engineer"
+      ]
+    },
+    "generative_ai": {
+      "display_name": "Generative AI",
+      "queries": [
+        "generative AI engineer",
+        "GenAI engineer",
+        "LLM engineer",
+        "AI research engineer"
+      ]
+    },
+    "cpu_engineering": {
+      "display_name": "CPU Engineering",
+      "queries": [
+        "CPU design engineer",
+        "CPU verification engineer",
+        "processor performance engineer",
+        "microarchitecture engineer"
+      ]
+    },
+    "gpu_engineering": {
+      "display_name": "GPU Engineering",
+      "queries": [
+        "GPU engineer",
+        "GPU compiler engineer",
+        "graphics hardware engineer",
+        "CUDA engineer"
+      ]
+    },
+    "software_engineering": {
+      "display_name": "Software Engineering",
+      "queries": [
+        "backend software engineer",
+        "distributed systems engineer",
+        "Python software engineer",
+        "systems software engineer"
+      ]
+    },
+    "cloud_platform": {
+      "display_name": "Cloud and Platform Engineering",
+      "queries": [
+        "cloud engineer",
+        "platform engineer",
+        "DevOps engineer",
+        "site reliability engineer"
+      ]
+    },
+    "cybersecurity": {
+      "display_name": "Cybersecurity Engineering",
+      "queries": [
+        "security engineer",
+        "cloud security engineer",
+        "application security engineer",
+        "security operations engineer"
+      ]
+    }
+  }
+}

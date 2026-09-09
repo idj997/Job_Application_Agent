@@ -1,0 +1,39 @@
+{
+  "data": [
+    {
+      "id": 101,
+      "slug": "data-engineer-london-101",
+      "company_name": "Example Analytics",
+      "title": "Data Engineer",
+      "description": "<p>Join our data platform group and help build dependable services used throughout the organisation.</p><h2>What you will do</h2><ul><li>Design and operate batch and streaming pipelines using Python, SQL, and cloud services.</li><li>Work with analysts and product engineers to improve data quality, observability, and delivery.</li><li>Review designs and support production systems.</li></ul><h2>What we are looking for</h2><p>You have practical experience building production data pipelines, communicating technical trade-offs, and improving systems over time. We welcome applicants with varied industry backgrounds.</p>",
+      "remote": true,
+      "visa_sponsorship": true,
+      "url": "https://www.arbeitnow.co.uk/jobs/companies/example-analytics/data-engineer-london-101",
+      "tags": ["Python", "SQL", "Data"],
+      "job_types": ["full_time"],
+      "location": "London, United Kingdom",
+      "created_at": "2026-08-01T09:00:00Z"
+    },
+    {
+      "id": 102,
+      "slug": "product-manager-manchester-102",
+      "company_name": "Example Product Co",
+      "title": "Product Manager",
+      "description": "<p>Lead a product team and define its roadmap.</p>",
+      "remote": false,
+      "visa_sponsorship": false,
+      "url": "https://www.arbeitnow.co.uk/jobs/companies/example-product/product-manager-102",
+      "tags": ["Product"],
+      "job_types": ["full_time"],
+      "location": "Manchester, United Kingdom",
+      "created_at": "2026-08-02T09:00:00Z"
+    }
+  ],
+  "links": {
+    "next": "https://www.arbeitnow.co.uk/api/job-board-api?page=2"
+  },
+  "meta": {
+    "current_page": 1,
+    "last_page": 2
+  }
+}

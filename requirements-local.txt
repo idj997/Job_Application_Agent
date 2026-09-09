@@ -1,0 +1,11 @@
+# Lightweight local extraction, job collection, and annotation/dataset tooling.
+# Install the Ollama server separately; this installs its Python client only.
+ollama>=0.6,<1
+pydantic>=2.10,<3
+python-dotenv>=1.0,<2
+requests>=2.32,<3
+urllib3>=2.2,<3
+beautifulsoup4>=4.12,<5
+
+# Optional PyTorch/Transformers classifier experiments are documented in
+# docs/LOCAL_MODE.md; they are intentionally outside the base installation.

@@ -1,0 +1,3 @@
+# Tests do not require Ollama or the local classifier model stack.
+-r requirements-openai.txt
+pytest>=8,<10

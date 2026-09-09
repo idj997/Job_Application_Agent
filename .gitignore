@@ -1,0 +1,38 @@
+# Credentials and machine-local environments
+.env
+.env.*
+!.env.example
+.venv*/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Candidate details, scraped corpora, application history and generated datasets
+data/*
+!data/README.md
+!data/labelled/
+data/labelled/*
+!data/labelled/README.md
+config/candidate_profile.json
+config/candidate_profile.yaml
+config/candidate_profile.yml
+config/candidate_profile.local.*
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Build products, editor files and local browser downloads
+build/
+dist/
+*.egg-info/
+.DS_Store
+.idea/
+.vscode/
+playwright-report/
+test-results/

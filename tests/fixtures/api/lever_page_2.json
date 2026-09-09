@@ -1,0 +1,22 @@
+[
+  {
+    "id": "lever-503",
+    "text": "Junior Data Engineer",
+    "categories": {
+      "commitment": "Full-time",
+      "department": "Engineering",
+      "team": "Data Platform",
+      "location": "Manchester, United Kingdom",
+      "allLocations": ["Manchester, United Kingdom"]
+    },
+    "country": "GB",
+    "description": "<p>Apply now. Python and SQL required.</p>",
+    "descriptionPlain": "Apply now. Python and SQL required.",
+    "lists": [],
+    "additional": "",
+    "additionalPlain": "",
+    "hostedUrl": "https://jobs.lever.co/example/lever-503",
+    "applyUrl": "https://jobs.lever.co/example/lever-503/apply",
+    "workplaceType": "on-site"
+  }
+]

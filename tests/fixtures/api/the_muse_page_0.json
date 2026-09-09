@@ -1,0 +1,56 @@
+{
+  "page_count": 2,
+  "page": 0,
+  "results": [
+    {
+      "contents": "<p>Join our data platform group and help build dependable services used across the organisation.</p><h2>What you will do</h2><ul><li>Design and operate batch and streaming pipelines using Python and SQL.</li><li>Improve data quality, observability, automated testing, and production support.</li><li>Work with analysts and application engineers on clear data contracts.</li></ul><h2>What we need</h2><p>You have experience delivering production data systems, reviewing technical designs, explaining trade-offs, and improving services over time. Cloud and infrastructure-as-code experience would be useful.</p>",
+      "name": "Senior Data Engineer",
+      "type": "external",
+      "publication_date": "2026-08-18T10:00:00Z",
+      "short_name": "senior-data-engineer",
+      "model_type": "jobs",
+      "id": 801,
+      "locations": [
+        {"name": "London, United Kingdom"},
+        {"name": "Flexible / Remote"}
+      ],
+      "categories": [
+        {"name": "Data and Analytics"},
+        {"name": "Software Engineering"}
+      ],
+      "levels": [
+        {"name": "Senior Level", "short_name": "senior"}
+      ],
+      "tags": ["Python", "SQL"],
+      "refs": {
+        "landing_page": "https://www.themuse.com/jobs/example/senior-data-engineer"
+      },
+      "company": {
+        "id": 91,
+        "name": "Example Muse Company",
+        "short_name": "example-muse-company"
+      }
+    },
+    {
+      "contents": "<p>Lead a product team and define its roadmap.</p>",
+      "name": "Product Manager",
+      "type": "external",
+      "publication_date": "2026-08-17T10:00:00Z",
+      "short_name": "product-manager",
+      "model_type": "jobs",
+      "id": 802,
+      "locations": [{"name": "Manchester, United Kingdom"}],
+      "categories": [{"name": "Product Management"}],
+      "levels": [{"name": "Mid Level", "short_name": "mid"}],
+      "tags": [],
+      "refs": {
+        "landing_page": "https://www.themuse.com/jobs/example/product-manager"
+      },
+      "company": {
+        "id": 91,
+        "name": "Example Muse Company",
+        "short_name": "example-muse-company"
+      }
+    }
+  ]
+}
