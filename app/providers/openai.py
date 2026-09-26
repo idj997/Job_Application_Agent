@@ -8,10 +8,12 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from app.providers.base import ModelProviderError
+
 T = TypeVar("T", bound=BaseModel)
 
 
-class OpenAIProviderError(RuntimeError):
+class OpenAIProviderError(ModelProviderError):
     """A request failed or returned no usable, complete result."""
 
 
@@ -37,6 +39,8 @@ class OpenAIProvider:
     requests (not internal SDK retries), and tokens reported by responses,
     including responses subsequently rejected as incomplete or refused.
     """
+
+    name = "openai"
 
     def __init__(
         self,

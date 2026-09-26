@@ -23,6 +23,8 @@ def decide(
     job_text: str,
     constraint_ids: set[str],
     threshold: int = 70,
+    *, use_recommendation: bool = True,
+    job_context: dict | None = None,
 ) -> Decision:
     errors = []
     total = sum(WEIGHTS[item.importance] for item in assessment.requirements)
@@ -51,7 +53,21 @@ def decide(
     for item in assessment.constraint_checks:
         if item.status != "UNKNOWN" and not item.job_evidence:
             errors.append(f"Constraint verdict has no job evidence: {item.constraint_id}.")
-        if item.job_evidence and not is_quote(item.job_evidence, job_text):
+        evidence_source = item.job_evidence_source
+        if evidence_source == "description":
+            verified = not item.job_evidence or is_quote(item.job_evidence, job_text)
+        else:
+            # Only the deterministic classifier may cite structured job fields.
+            # Full-field equality prevents cherry-picking "UK" from "UK or India".
+            field = (job_context or {}).get(evidence_source)
+            verified = (
+                not use_recommendation
+                and {"title": "role", "location": "location"}.get(evidence_source) == item.constraint_id
+                and isinstance(field, str) and bool(field.strip())
+                and bool(item.job_evidence)
+                and normalized(item.job_evidence) == normalized(field)
+            )
+        if not verified:
             errors.append(f"Constraint evidence could not be verified: {item.constraint_id}.")
     if errors:
         return Decision(verdict="REVIEW", score=score, reasons=errors)
@@ -65,11 +81,15 @@ def decide(
             verdict="REVIEW", score=score,
             reasons=unknowns + (["Unresolved mandatory requirements: " + ", ".join(core_gaps)] if core_gaps else []),
         )
-    if assessment.recommended_verdict != "APPLY":
+    if not use_recommendation and assessment.uncertainties:
+        return Decision(verdict="REVIEW", score=score, reasons=assessment.uncertainties)
+    if use_recommendation and assessment.recommended_verdict != "APPLY":
         return Decision(verdict=assessment.recommended_verdict, score=score, reasons=[assessment.rationale])
     if score < threshold:
         return Decision(verdict="SKIP", score=score, reasons=[f"Match score {score} is below your threshold of {threshold}."])
-    return Decision(verdict="APPLY", score=score, reasons=[assessment.rationale])
+    reasons = ([assessment.rationale] if use_recommendation else
+        ["Classifier evidence passed the configured match threshold and all mandatory constraints."])
+    return Decision(verdict="APPLY", score=score, reasons=reasons)
 
 
 def validate_cv(cv: TailoredCV, master_cv: str) -> list[str]:

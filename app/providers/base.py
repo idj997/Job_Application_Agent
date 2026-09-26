@@ -7,6 +7,10 @@ from pydantic import BaseModel
 T = TypeVar("T", bound=BaseModel)
 
 
+class ModelProviderError(RuntimeError):
+    """A provider failure whose message is safe to show without exposing inputs."""
+
+
 @runtime_checkable
 class ModelProvider(Protocol):
     """Providers need not inherit from this protocol to satisfy it."""

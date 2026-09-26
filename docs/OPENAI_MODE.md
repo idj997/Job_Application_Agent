@@ -3,12 +3,16 @@
 This mode collects job listings, checks them against your master CV and preferences,
 creates a tailored CV for suitable roles, evaluates the new document, and saves an
 application package. A separate command opens the employer form and can assist
-with submission. You can start using it without training the local classifiers.
+with submission. Matching defaults to local rules plus a cached pretrained NLI
+classifier. OpenAI is used only to write and audit CVs for passing jobs.
+There is no validated custom-trained CV-matching checkpoint in this repository;
+the reviewed importance-label dataset is for a different task. Baseline
+uncertainty stays REVIEW, and classifier failures do not fall back to an LLM.
 
 ```mermaid
 flowchart LR
     A[Fetch or select jobs] --> B[Obtain full descriptions]
-    B --> C[Match against master CV]
+    B --> C[Local classifier match against master CV]
     C -->|APPLY| D[Tailor CV]
     C -->|SKIP or REVIEW| E[Save reasons]
     D --> F[Check sources and evaluate CV]
@@ -23,8 +27,10 @@ unknown experience, qualifications, work authorization and personal answers are
 not filled in by assumption. Numerical scores are internal evaluation rubrics,
 not employer ATS scores or promises of an interview.
 
-For the other workflow, return to the [main README](../README.md). This guide
-covers the OpenAI CLI in [scripts/apply_jobs.py](../scripts/apply_jobs.py).
+The same application workflow can run on your installed local Qwen model;
+see the [local application guide](LOCAL_MODE.md) to use it without an OpenAI key
+or SDK. This guide explicitly selects `--provider openai` in
+[scripts/apply_jobs.py](../scripts/apply_jobs.py).
 
 ## 1. Install from a fresh clone
 
@@ -36,12 +42,15 @@ git clone git@github.com:idj997/Job_Application_Agent.git
 cd Job_Application_Agent
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-openai.txt
+.venv/bin/python -m pip install -r requirements-classifier.txt
 ```
 
 Use a recent Python version; the application tests have run on Python 3.14 in
 the development workspace. Dependencies for this mode are listed separately in
-[requirements-openai.txt](../requirements-openai.txt); the local model and
-training stack is not required. On Windows, use the corresponding virtual
+[requirements-openai.txt](../requirements-openai.txt). Default matching also
+needs [requirements-classifier.txt](../requirements-classifier.txt) and locally
+cached classifier weights, but does not require Ollama or the research/training
+stack. On Windows, use the corresponding virtual
 environment executable, usually `.venv\Scripts\python.exe`.
 
 Install Chromium if you intend to use the application browser:
@@ -72,6 +81,10 @@ source credentials and local model settings.
 OPENAI_API_KEY=replace_with_your_api_key
 OPENAI_MODEL=gpt-5-mini
 OPENAI_MAX_OUTPUT_TOKENS=6000
+APPLICATION_MATCHER=classifier
+REQUIREMENT_NLI_MODEL=cross-encoder/nli-deberta-v3-small
+REQUIREMENT_NLI_REVISION=
+REQUIREMENT_NLI_DEVICE=cpu
 ```
 
 `gpt-5-mini` is an example model with Responses and Structured Outputs support.
@@ -84,16 +97,35 @@ Environment variables already exported in your shell take precedence over `.env`
 Do not put an API key in a job file, candidate profile, README or command-line
 argument. The application reads it through the environment.
 
+`--provider openai` overrides `APPLICATION_PROVIDER`. Without that flag, the
+provider comes from `APPLICATION_PROVIDER`, falling back to `openai` only if the
+setting is absent. `.env.example` selects `ollama`, so this guide uses explicit
+provider flags. `--model` selects a model for the chosen provider: it overrides
+`OPENAI_MODEL` here and `OLLAMA_MODEL` in local mode. There is no automatic
+fallback between providers.
+
+`--matcher classifier` overrides `APPLICATION_MATCHER`, whose default is
+`classifier` when unset. The NLI baseline runs on CPU by default and loads only
+already-cached model/tokenizer files. You can set `REQUIREMENT_NLI_MODEL` to a
+complete local model directory or a cached model identifier, and optionally pin
+`REQUIREMENT_NLI_REVISION` to a cached revision. Preparation and `doctor` never
+download missing weights. Use `--matcher llm` only to explicitly select the older
+model-generated matching path; that makes an additional OpenAI matching request
+and does not need the classifier requirements.
+
 Check the installation:
 
 ```bash
-.venv/bin/python app.py doctor
+.venv/bin/python app.py doctor --provider openai --matcher classifier
 ```
 
-`doctor` reports installed Python modules and whether `OPENAI_API_KEY` and
-`OPENAI_MODEL` are set. It does not display their values, call the API, validate
+`doctor --provider openai --matcher classifier` reports installed Python modules,
+the configured pretrained matching baseline and whether
+`OPENAI_API_KEY` and `OPENAI_MODEL` are set. It does not display their values, call the API, validate
 account billing/model access, or launch Chromium. Its exit code reflects missing
-Python dependencies; also read the configuration lines it prints.
+required Python dependencies; `sentencepiece` is advisory because some cached
+tokenizers do not need it. It does not load or verify cached model files. Also
+read the configuration lines it prints.
 
 ## 2. Add your CV and profile
 
@@ -133,6 +165,7 @@ fictional and illustrates the format:
     "minimum_salary": 45000,
     "salary_currency": "GBP",
     "requires_sponsorship": null,
+    "sponsorship_exempt_locations": [],
     "hard_constraints": []
   }
 }
@@ -154,7 +187,8 @@ configuration mistakes.
 | `preferences.work_patterns` | Any combination of `remote`, `hybrid`, `onsite`. An empty list adds no work-pattern constraint. |
 | `preferences.minimum_salary` | Minimum annual salary in `salary_currency`; `null` disables the salary constraint. |
 | `preferences.salary_currency` | Currency label used in the salary requirement; default `GBP`. The application has no exchange-rate conversion service. |
-| `preferences.requires_sponsorship` | `true` requires explicit suitable sponsorship from the employer. `false` and `null` add no sponsorship constraint; neither certifies work authorization. |
+| `preferences.requires_sponsorship` | `true` requires explicit suitable sponsorship outside configured exempt locations. `false` and `null` add no sponsorship constraint; neither certifies work authorization. |
+| `preferences.sponsorship_exempt_locations` | Locations where you do not require sponsorship, based on your actual situation. A job must be explicitly established as within an exemption; ambiguous locations remain unresolved. |
 | `preferences.hard_constraints` | Extra conditions you want checked individually, expressed as strings. Unknown evidence can send the role to REVIEW. |
 
 Empty preference lists add no constraints of that kind. If you set a minimum
@@ -173,16 +207,26 @@ You can omit the profile and use `--cv` directly. This uses an empty set of
 preferences and leaves browser contact fields for you to complete:
 
 ```bash
-.venv/bin/python app.py prepare --cv data/cv/master.pdf --limit 1 --dry-run
+.venv/bin/python app.py prepare --provider openai --cv data/cv/master.pdf --limit 1 --dry-run
 ```
 
 ## 3. Preview and prepare jobs
 
-Start with a small batch:
+Start with one job and match only before making paid CV-generation requests:
 
 ```bash
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --limit 3 --dry-run
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --limit 3
+.venv/bin/python app.py prepare --provider openai --matcher classifier --profile config/candidate_profile.json --limit 1 --match-only --dry-run
+.venv/bin/python app.py prepare --provider openai --matcher classifier --profile config/candidate_profile.json --limit 1 --match-only
+.venv/bin/python app.py list
+```
+
+`--match-only` saves APPLY results as `matched`, with no tailored CV. This state
+is not browser-ready. Matching makes zero OpenAI requests and does not construct
+the OpenAI provider or require its SDK/key. Once you have inspected the match,
+omit `--match-only` to prepare a CV for a passing job:
+
+```bash
+.venv/bin/python app.py prepare --provider openai --matcher classifier --profile config/candidate_profile.json --limit 1
 ```
 
 A dry run loads the profile and CV and previews the job count, constraints and
@@ -190,9 +234,13 @@ maximum logical model calls. It makes no network requests or model calls and
 writes no application artifacts. It does not verify that an employer page is
 reachable or that your API key/model can make a successful request.
 
-An ordinary preparation run requires OpenAI configuration, including when its
-eventual results are cached or marked REVIEW without model calls. The inspection
-and browser commands do not use the OpenAI provider.
+With classifier matching, OpenAI configuration is needed only when a passing job
+actually reaches CV generation. Cached, SKIP, REVIEW and match-only paths do not
+construct the generation provider. Explicit `--matcher llm` initializes the
+OpenAI provider before matching and requires its configuration. Inspection and
+browser commands do not use the OpenAI provider. The examples below assume
+`APPLICATION_MATCHER=classifier`; add `--matcher classifier` to override any
+different shell setting.
 
 ### Use previously collected jobs
 
@@ -201,8 +249,8 @@ With no `--job`, `--url` or `--fetch`, preparation reads JSON job records from
 have no collected jobs; use one of the discovery or URL commands below.
 
 ```bash
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --jobs-dir data/processed_jobs --limit 5
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --job data/processed_jobs/JOB_ID.json --limit 1
+.venv/bin/python app.py prepare --provider openai --profile config/candidate_profile.json --jobs-dir data/processed_jobs --limit 5
+.venv/bin/python app.py prepare --provider openai --profile config/candidate_profile.json --job data/processed_jobs/JOB_ID.json --limit 1
 ```
 
 `--job` is repeatable. Explicit files are processed in the order supplied. Each
@@ -215,7 +263,7 @@ reported and skipped.
 Replace the sample company and job identifier with a real posting:
 
 ```bash
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --url "https://jobs.lever.co/COMPANY/JOB_ID" --limit 1
+.venv/bin/python app.py prepare --provider openai --profile config/candidate_profile.json --url "https://jobs.lever.co/COMPANY/JOB_ID" --limit 1
 ```
 
 `--url` is repeatable. Explicit URLs exclude the default directory selection.
@@ -231,7 +279,7 @@ Pages requiring an interactive browser may need a manually saved description.
 ### Fetch and prepare in one command
 
 ```bash
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --fetch --sources adzuna --query "data engineer" --location "United Kingdom" --limit 5
+.venv/bin/python app.py prepare --provider openai --profile config/candidate_profile.json --fetch --sources adzuna --query "data engineer" --location "United Kingdom" --limit 5
 ```
 
 The application reuses `JobCollectionService` and the existing source adapters.
@@ -251,9 +299,9 @@ save up to five jobs each, while preparing up to five available records.
 Examples:
 
 ```bash
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --fetch --sources greenhouse --board-token COMPANY_TOKEN --query "data engineer" --location "" --limit 3
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --fetch --sources lever --company-slug COMPANY_SLUG --query "data engineer" --location "" --limit 3
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --fetch --sources arbeitnow remotive --query "python" --location "United Kingdom" --limit 3
+.venv/bin/python app.py prepare --provider openai --profile config/candidate_profile.json --fetch --sources greenhouse --board-token COMPANY_TOKEN --query "data engineer" --location "" --limit 3
+.venv/bin/python app.py prepare --provider openai --profile config/candidate_profile.json --fetch --sources lever --company-slug COMPANY_SLUG --query "data engineer" --location "" --limit 3
+.venv/bin/python app.py prepare --provider openai --profile config/candidate_profile.json --fetch --sources arbeitnow remotive --query "python" --location "United Kingdom" --limit 3
 ```
 
 The discovery query comes from `--query` or the first profile target role. Supply
@@ -283,7 +331,7 @@ Save the complete employer description as UTF-8 `.txt` or `.md` and target one
 job explicitly:
 
 ```bash
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --job data/processed_jobs/JOB_ID.json --description-file data/cv/job-description.txt --limit 1
+.venv/bin/python app.py prepare --provider openai --profile config/candidate_profile.json --job data/processed_jobs/JOB_ID.json --description-file data/cv/job-description.txt --limit 1
 ```
 
 `--description-file` requires exactly one `--job` or `--url`; it cannot accompany
@@ -318,7 +366,7 @@ mkdir -p data/processed_jobs
 Then prepare the saved record:
 
 ```bash
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --job data/processed_jobs/manual-job.json --description-file data/cv/job-description.txt --limit 1
+.venv/bin/python app.py prepare --provider openai --profile config/candidate_profile.json --job data/processed_jobs/manual-job.json --description-file data/cv/job-description.txt --limit 1
 ```
 
 If the source URL is an aggregator and you already
@@ -329,7 +377,7 @@ description URL, then the canonical/source URL.
 To avoid enrichment requests altogether:
 
 ```bash
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --limit 5 --no-enrich
+.venv/bin/python app.py prepare --provider openai --profile config/candidate_profile.json --limit 5 --no-enrich
 ```
 
 Summary-only jobs then go to REVIEW without a model call. This flag does not
@@ -339,11 +387,14 @@ disable explicit URL retrieval or discovery requested by `--url`/`--fetch`.
 
 ### Match verdict
 
-Matching returns structured requirements, importance, status, job evidence and
-CV evidence. The application checks evidence quotations against the supplied
-text after normalizing whitespace. A quotation check establishes that the text
-exists; the model is still responsible for interpreting whether it supports the
-claim.
+Default matching combines conservative requirement/constraint rules with the
+cached pretrained NLI baseline. It returns structured requirements, importance,
+status, job evidence and CV evidence. The application checks evidence quotations
+against the supplied text after normalizing whitespace. This verifies that
+quoted text exists, not that the semantic conclusion is infallible. The baseline
+is not custom-trained or calibrated on your CV/job pairs. Unclear mandatory
+requirements, numeric experience comparisons and insufficient retrieved
+evidence can require REVIEW instead of speculative matches.
 
 The score is calculated in code:
 
@@ -358,24 +409,47 @@ match score = round(100 × sum(requirement weight × credit) / sum(requirement w
 | PREFERRED: desirable | 1 |
 | CONTEXTUAL / NOT_REQUIREMENT | 0 |
 
-MET earns `1`, PARTIAL `0.5`, and MISSING/UNKNOWN `0`. Acceptable alternatives
-such as “Python or Java” are prompted as one grouped requirement. Zero total
+MET earns `1`, PARTIAL `0.5`, and MISSING/UNKNOWN `0`. The classifier handles
+simple OR/AND groups in code; unresolved compound or mixed groups require review
+rather than assumed evidence. Evidence retrieval and NLI input caps also produce
+review reasons rather than silently approving an incomplete comparison. See the
+[matching limits](LOCAL_MODE.md#runtime-limits-and-review). Zero total
 weight, duplicate requirements, unverified evidence, an incomplete description
 or missing constraint checks lead to REVIEW.
 
 After those validation checks, explicit failed constraints produce SKIP.
 Unknown constraints and any CORE requirement not fully MET produce REVIEW.
-The model must also recommend APPLY and the score must meet `--match-threshold`
-(default `70`). A high numerical score cannot override a failed or unresolved
+If your profile requires sponsorship and the advertisement does not explicitly
+resolve it, that unknown must remain REVIEW with either provider.
+The score must meet `--match-threshold` (default `70`), with classifier
+uncertainties resolved. Only explicit `--matcher llm` additionally requires the
+generation model's APPLY recommendation. A high numerical score cannot override a failed or unresolved
 mandatory check. Lowering the threshold does not disable these checks.
 
 ### CV generation and evaluation
 
-Only an APPLY verdict triggers tailoring. The model creates structured CV
-sections with evidence quotations from the master CV. A separate request audits
-the complete proposed CV against the job and master CV for unsupported claims,
+An APPLY verdict outside `--match-only` normally triggers tailoring; the explicit
+single-job manual REVIEW override authorizes drafting only, never submission.
+The shared workflow sends the complete master CV as a numbered source-line catalog.
+The model creates structured `ReferencedCV` entries with `evidence_ids`, not copied
+quotations. The application rejects invalid IDs and resolves valid references into
+exact original quotes in the saved CV. `cv_sources.json` and `cv_references_N.json`
+retain the provenance. A real source quote does not by itself prove a claim.
+For a displayed entry identical to a complete source line, the shared resolver
+can correct a misplaced valid citation by exact equality. The raw model IDs are
+retained in `cv_model_references_N.json`, with explicit reconciliation notes.
+There is no fuzzy repair, no claim rewriting, and no repair of invalid IDs.
+A separate request audits the complete proposed CV and its resolved evidence
+against the job and original master CV for unsupported claims,
 missing critical information, coverage and clarity. It uses the configured
-model again, rather than a separately configured evaluator model.
+model again by default. You can instead select a separate local evaluator with
+`--critic-model ministral-3:8b` or `CV_CRITIC_MODEL=ministral-3:8b`; install it separately
+with `ollama pull ministral-3:8b`. This uses the same source-validated bounded feedback
+loop described in [Separate local CV critic](LOCAL_MODE.md#separate-local-cv-critic).
+The OpenAI model remains the writer and still receives the CV, job and revision
+feedback: a local critic does not make OpenAI writing private or free. With one
+allowed revision, the upper bound becomes two writer API calls plus two local
+critic calls, rather than four writer API calls. `--no-critic` restores self-audit.
 
 ```text
 CV quality score = round(0.7 × requirement coverage + 0.3 × clarity)
@@ -383,7 +457,21 @@ CV quality score = round(0.7 × requirement coverage + 0.3 × clarity)
 
 The default `--cv-threshold` is `75`. Ready status also requires valid source
 quotations, factual consistency, no unsupported claims and no missing critical
-information reported by the audit. Those conditions apply regardless of score.
+information reported by the audit. Drafts target two pages and are also limited
+to 650 words, a 70-word summary, five Skills entries and 32 non-contact entries.
+Those conditions apply regardless of score; page count still needs visual review.
+
+For a reviewed, fixed document selection, this mode also accepts
+`--selection-plan path/to/plan.json` with one saved `--job`, `--limit 1` and
+`--no-enrich`. The [selection-plan guide](LOCAL_MODE.md#reviewed-selection-plans)
+describes source/job binding, fixed identity/date entries and bounded rewrite
+slots. It changes the writer's output schema, not the matcher or provider choice;
+the selected writer still receives the complete source catalog. Planned evidence
+IDs are assigned locally and never broadened by exact-source citation repair.
+The optional [entry-by-entry mode](LOCAL_MODE.md#entry-by-entry-writing) uses up to
+two writer requests per rewrite slot plus one full audit, with no automatic
+critic-driven revisions. If you explicitly select a paid writer, those writer
+requests still use that provider; choosing a local critic does not change this.
 Source checks and model audits can miss problems; read the generated document
 before using it.
 
@@ -416,10 +504,11 @@ remains a snapshot of preparation. Use `list`/`show` to inspect the current stat
 
 | State | Meaning and next action |
 | --- | --- |
+| `matched` | Match-only produced APPLY, but no CV exists. Rerun without `--match-only` to prepare documents; this state cannot open the application browser. |
 | `ready` | Matching, tailoring and evaluation passed. Review the package, then open it. |
 | `review` | The match or generated CV needs attention. Read the reasons; supply missing facts or a full description before retrying. |
 | `skipped` | A validated mismatch or score below the match threshold. No tailored CV is produced. |
-| `failed` | Preparation encountered an API, configuration or document error. Correct the cause and prepare again. |
+| `failed` | Preparation encountered a classifier, API, configuration or document error. Correct the cause and prepare again. |
 | `opened` | A browser session was claimed. Its outcome must be confirmed or resolved before reopening. |
 | `submitted` | An employer receipt was detected or you recorded a verified confirmation. Further attempts are blocked. |
 | `submission_unknown` | A protected uncertain outcome, if present in the ledger. Verify the employer's state before any retry. |
@@ -479,8 +568,9 @@ manually in the open browser.
 Embedded forms and custom career sites may need manual uploads and answers.
 LinkedIn Easy Apply automation, account creation, generalized AI browser control
 and automatic responses to arbitrary application questions are not implemented.
-The OpenAI model is used for matching and CV preparation; browser actions use
-the code's existing selectors and your explicit profile values.
+The OpenAI model writes and audits CVs, and performs matching only if you
+explicitly select `--matcher llm`. Browser actions use the code's existing
+selectors and your explicit profile values.
 
 ### Confirm or resolve the outcome
 
@@ -519,15 +609,16 @@ Use one ledger for one candidate.
 The default preparation batch is five jobs; `--limit` accepts `1` through `100`.
 Start with one or three jobs while checking your CV, profile and score thresholds.
 
-| Per-job path | Logical OpenAI requests |
+| Per-job path with default classifier matching | Logical OpenAI requests |
 | --- | ---: |
 | Unresolved source summary / cached preparation | 0 |
-| Matching ends in SKIP or REVIEW | 1 |
-| Matching, first tailored CV and evaluation | 3 |
+| Match-only, or matching ends in SKIP or REVIEW | 0 |
+| Passing match, first tailored CV and evaluation | 2 |
 | Each additional revision | +2 |
 
-The upper bound per job is `1 + 2 × (max_revisions + 1)`: five calls at the
-default revision setting, seven with two revisions. Transient failures can
+The upper bound per job is `2 × (max_revisions + 1)`: four calls at the
+default revision setting, six with two revisions. Explicit `--matcher llm`
+adds one matching request, including in match-only mode. Transient failures can
 trigger up to two SDK retries per logical request by default. Each request has
 a configured output cap (`OPENAI_MAX_OUTPUT_TOKENS`, default `6000`) and the
 provider uses a 60-second timeout per SDK request attempt by default.
@@ -540,13 +631,15 @@ your API project's usage controls and the model's current pricing.
 [Official API pricing](https://developers.openai.com/api/docs/pricing).
 
 An unchanged completed preparation is reused when the job, master CV, profile,
-model, thresholds, revision setting and workflow fingerprint match. Changes to
+provider/model, matcher configuration, match-only setting, thresholds, revision
+setting and workflow fingerprint match. A `matched` record therefore cannot
+satisfy a full CV-preparation request. Changes to
 those inputs trigger reassessment. A failed preparation is eligible for another
 run; `--retry` explicitly requests reassessment of an existing unprotected
 record:
 
 ```bash
-.venv/bin/python app.py prepare --profile config/candidate_profile.json --job data/processed_jobs/JOB_ID.json --limit 1 --retry
+.venv/bin/python app.py prepare --provider openai --profile config/candidate_profile.json --job data/processed_jobs/JOB_ID.json --limit 1 --retry
 ```
 
 `--retry` does not reopen, resubmit or release an existing attempt. Submitted,
@@ -554,9 +647,10 @@ uncertain and attempted records stay protected. Repeating a summary-enrichment
 run can still retrieve its employer page before a preparation cache match is
 known. Prepared document versions are saved in separate subdirectories.
 
-During model calls, the master CV, selected job facts and configured matching
-constraints are sent to OpenAI. Tailoring and evaluation also send the relevant
-assessment, draft and feedback. Local CV paths and the duplicate raw job record
+Default matching runs locally. During OpenAI CV-generation calls, the master CV,
+selected job facts, matching assessment and relevant draft/feedback are sent to
+OpenAI. Explicit LLM matching also sends the job, CV and configured constraints
+to OpenAI. Local CV paths and the duplicate raw job record
 are excluded from model prompts. Requests use Structured Outputs and set
 `store=False`; that setting disables response storage for later retrieval and
 does not establish zero retention for every API processing purpose.
@@ -575,7 +669,7 @@ separate test ledger. `--output` is a global argument and must appear **before**
 the subcommand, consistently on every command for that ledger:
 
 ```bash
-.venv/bin/python app.py --output data/applications/alex prepare --profile config/candidate_profile.json --limit 3
+.venv/bin/python app.py --output data/applications/alex prepare --provider openai --profile config/candidate_profile.json --limit 3
 .venv/bin/python app.py --output data/applications/alex list
 .venv/bin/python app.py --output data/applications/alex open APPLICATION_ID
 ```
@@ -594,7 +688,7 @@ commands; use the virtual environment's Python executable.
 
 | Command | Purpose |
 | --- | --- |
-| `doctor` | Check Python dependencies and presence of OpenAI configuration without external calls. |
+| `doctor --provider openai --matcher classifier` | Check selected provider/matcher dependencies and configuration without external calls or loading model weights. |
 | `prepare` | Select/fetch jobs, match, tailor, evaluate and save packages. |
 | `list` | Print application IDs, states and scores from the selected ledger. |
 | `show ID` | Print a saved record as JSON; `ID` must be a unique prefix. |
@@ -609,7 +703,10 @@ Global option: `--output PATH`, default `data/applications`, before the command.
 | --- | --- | --- |
 | `--cv PATH` | Optional if the profile supplies `cv_path` | Master CV; overrides the profile path. |
 | `--profile PATH` | Optional | JSON candidate preferences/contact fields. |
-| `--model NAME` | `OPENAI_MODEL` | Responses/Structured Outputs model. |
+| `--provider NAME` | `APPLICATION_PROVIDER`, otherwise `openai` | Select `openai` or `ollama`; this guide uses `openai` explicitly. |
+| `--matcher NAME` | `APPLICATION_MATCHER`, otherwise `classifier` | Cached local classifier matching; `llm` explicitly selects the legacy generation-model matching request. |
+| `--match-only` | Off | Save verdicts without CV generation. APPLY becomes `matched`, not browser-ready; classifier mode makes no OpenAI requests. |
+| `--model NAME` | `OPENAI_MODEL` for this provider | Responses/Structured Outputs model; local mode instead reads `OLLAMA_MODEL`. |
 | `--jobs-dir PATH` | `data/processed_jobs` | Stored-job input and discovery output directory. |
 | `--job PATH` | Repeatable | Explicit processed-job JSON file. |
 | `--url URL` | Repeatable | Explicit employer URL to retrieve. |
@@ -638,6 +735,9 @@ previously stored jobs still produce useful results; read the printed summary.
 
 | Symptom | What to check |
 | --- | --- |
+| Classifier libraries or cached weights missing | Install `requirements-classifier.txt` and use a complete existing model/tokenizer cache or local directory. No weights are downloaded automatically and no LLM fallback is attempted. |
+| Match-only returns `matched` but no PDF | Expected: rerun the same job without `--match-only` to request CV writing and evaluation. |
+| Many classifier REVIEW results | Read missing evidence, mandatory checks and uncertainties. The pretrained baseline is conservative and is not a validated custom CV matcher; an OpenAI key does not remove these checks. |
 | `OPENAI_MODEL` / `OPENAI_API_KEY` is missing | Add the entry to `.env` or your shell environment; an exported empty variable can take precedence over `.env`. Check `doctor` without printing the secret. |
 | HTTP 401/403 from OpenAI | Check API credentials and project/model access. `doctor` does not make an authentication request. |
 | HTTP 400/404 from OpenAI | Confirm the model identifier, Structured Outputs support and output-token limit. |
@@ -668,7 +768,8 @@ scoped suite:
 .venv/bin/python -m pytest tests/scraper tests/datasets tests/applications -q
 ```
 
-OpenAI tests use fake responses. Browser integration tests use offline Chromium
+Classifier and OpenAI tests use fakes or mocked responses; they do not download
+classifier weights. Browser integration tests use offline Chromium
 pages and skip if the local runtime cannot launch. They do not submit real job
 applications or make paid model calls. Some top-level local-model experiment
 scripts load/download models at import time, so they are outside this scoped

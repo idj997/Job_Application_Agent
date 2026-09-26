@@ -1,0 +1,17 @@
+# End-to-end local Ollama applications: collection, CV documents, and browser.
+# Ollama server and downloaded model are separate; no OpenAI SDK/key is needed.
+ollama>=0.6,<1
+# Reconstruct the inspected Ministral/Tekken tokenizer from cached GGUF metadata.
+tokenizers>=0.22.2,<0.23
+pydantic>=2.10,<3
+python-dotenv>=1.0,<2
+requests>=2.32,<3
+urllib3>=2.2,<3
+beautifulsoup4>=4.12,<5
+pypdf>=5,<7
+python-docx>=1.1,<2
+reportlab>=4,<5
+playwright>=1.50,<2
+
+# Default classifier-led matching also needs requirements-classifier.txt.
+# The explicit legacy --matcher llm path does not need classifier packages.

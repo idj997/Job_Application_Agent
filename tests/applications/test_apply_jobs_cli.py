@@ -43,6 +43,10 @@ def workspace(tmp_path):
 
 @pytest.fixture(autouse=True)
 def external_calls_forbidden(monkeypatch):
+    monkeypatch.setenv("APPLICATION_PROVIDER", "openai")
+    # Existing orchestration cases exercise the explicitly selected legacy path.
+    # Classifier-default behavior is covered separately below with an injected matcher.
+    monkeypatch.setenv("APPLICATION_MATCHER", "llm")
     def forbidden(*args, **kwargs):
         raise AssertionError("This CLI test must not contact external services")
 
@@ -61,6 +65,91 @@ def external_calls_forbidden(monkeypatch):
     monkeypatch.setattr(browser, "assist_application", forbidden)
     monkeypatch.setattr("requests.sessions.Session.request", forbidden)
     return instances
+
+
+@pytest.mark.parametrize("selection", ["flag", "environment"])
+def test_ollama_selection_never_constructs_openai(workspace, monkeypatch, capsys, selection):
+    write_job(workspace.jobs)
+    instances = []
+
+    class OfflineOllama:
+        name = "ollama"
+
+        def __init__(self, model=None):
+            self.model = model or "qwen3:8b"
+            self.usage = {"requests": 0, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            instances.append(self)
+
+        def generate_structured(self, *args, **kwargs):
+            raise AssertionError("Summary-only job must not call even the local model")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Local mode must never construct OpenAI")
+
+    monkeypatch.setattr("app.providers.ollama_provider.OllamaProvider", OfflineOllama)
+    monkeypatch.setattr("app.providers.openai.OpenAIProvider", forbidden)
+    options = ["--provider", "ollama"] if selection == "flag" else []
+    if selection == "environment":
+        monkeypatch.setenv("APPLICATION_PROVIDER", "ollama")
+    assert apply_jobs.main(prepare_command(workspace, *options, "--model", "local-test-model")) == 0
+
+    assert len(instances) == 1 and instances[0].model == "local-test-model"
+    record = ApplicationLedger(workspace.output / "applications.db").list()[0]
+    assert record["provider"] == "ollama"
+    assert record["status"] == "review"
+    output = capsys.readouterr().out
+    assert "Ollama (local) usage" in output
+    assert "OpenAI usage" not in output
+
+
+def test_explicit_openai_flag_overrides_local_default(workspace, monkeypatch, external_calls_forbidden):
+    monkeypatch.setenv("APPLICATION_PROVIDER", "ollama")
+    write_job(workspace.jobs)
+    assert apply_jobs.main(prepare_command(workspace, "--provider", "openai")) == 0
+    assert len(external_calls_forbidden) == 1
+
+
+def test_ollama_dry_run_does_not_construct_any_provider(workspace, monkeypatch, capsys):
+    write_job(workspace.jobs)
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Dry run must not construct any provider")
+    monkeypatch.setattr(apply_jobs, "build_provider", forbidden)
+    assert apply_jobs.main(prepare_command(workspace, "--provider", "ollama", "--dry-run")) == 0
+    output = capsys.readouterr().out
+    assert "Provider: Ollama (local)" in output
+    assert "no OpenAI requests" in output
+    assert not workspace.output.exists()
+
+
+def test_ollama_failure_never_falls_back_to_openai(workspace, monkeypatch, external_calls_forbidden):
+    def failed(*args, **kwargs):
+        raise RuntimeError("Local service unavailable")
+    monkeypatch.setattr("app.providers.ollama_provider.OllamaProvider", failed)
+    with pytest.raises(SystemExit) as error:
+        apply_jobs.main(prepare_command(workspace, "--provider", "ollama"))
+    assert error.value.code == 2
+    assert not external_calls_forbidden
+
+
+def test_invalid_provider_environment_fails_even_on_dry_run(workspace, monkeypatch):
+    monkeypatch.setenv("APPLICATION_PROVIDER", "unknown-cloud-service")
+    with pytest.raises(SystemExit) as error:
+        apply_jobs.main(prepare_command(workspace, "--dry-run"))
+    assert error.value.code == 2
+
+
+def test_local_doctor_does_not_require_openai_sdk_or_key(monkeypatch, capsys):
+    checked = []
+    def find_spec(name):
+        checked.append(name)
+        return None if name == "openai" else object()
+    monkeypatch.setattr(apply_jobs.importlib.util, "find_spec", find_spec)
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    assert apply_jobs.main(["doctor", "--provider", "ollama"]) == 0
+    output = capsys.readouterr().out
+    assert "ollama" in checked and "openai" not in checked
+    assert "OPENAI_API_KEY: not required" in output
+    assert "No API or model request" in output
 
 
 def prepare_command(workspace, *options):
@@ -350,3 +439,236 @@ def test_no_jobs_does_not_create_application_ledger(workspace, capsys):
     assert error.value.code == 2
     assert "No valid jobs" in capsys.readouterr().err
     assert not workspace.output.exists()
+
+
+def classifier_assessment():
+    from app.applications.models import MatchAssessment, RequirementMatch
+
+    return MatchAssessment(
+        description_complete=True,
+        requirements=[RequirementMatch(
+            requirement="Python", importance="CORE", job_evidence="Python is required.",
+            status="MET", cv_evidence=["Built Python and SQL data pipelines."],
+            explanation="The master CV documents Python pipeline work.",
+        )],
+        constraint_checks=[], recommended_verdict="APPLY", rationale="Source evidence matches.",
+        uncertainties=[],
+    )
+
+
+def write_full_job(workspace):
+    return write_job(
+        workspace.jobs, source="manual", metadata={"description_type": "full"},
+        description=(
+            "Python is required. You will help our team maintain its reporting pipelines. "
+            "Our colleagues use these reports to understand how services are performing. "
+            "The role includes discussing reporting needs, documenting the existing systems "
+            "and proposing practical improvements. We provide a supportive environment "
+            "with time to learn the systems and work with colleagues across the business."
+        ),
+    )
+
+
+class OfflineMatcher:
+    name = "classifier"
+    fingerprint = {"model": "offline-nli", "revision": "fixture"}
+    diagnostics = {}
+
+    def __init__(self, failure=None):
+        self.calls = []
+        self.failure = failure
+
+    def assess(self, job, profile, master_cv):
+        self.calls.append((job, profile, master_cv))
+        if self.failure is not None:
+            raise self.failure
+        return classifier_assessment()
+
+
+def forbid_generation_provider(*args, **kwargs):
+    raise AssertionError("Classifier-only matching must not construct a generation provider")
+
+
+def test_classifier_is_default_when_no_matcher_setting_exists(monkeypatch):
+    monkeypatch.delenv("APPLICATION_MATCHER", raising=False)
+    monkeypatch.setattr("dotenv.load_dotenv", lambda **kwargs: False)
+
+    assert apply_jobs.selected_matcher(None) == "classifier"
+
+
+@pytest.mark.parametrize("selection", ["flag", "environment", "default"])
+def test_classifier_match_only_uses_no_generation_sdk_key_or_requests(workspace, monkeypatch, capsys, selection):
+    write_full_job(workspace)
+    matcher = OfflineMatcher()
+    selected = []
+    def build_matcher(name):
+        selected.append(name)
+        return matcher
+    monkeypatch.setattr(apply_jobs, "build_matcher", build_matcher)
+    monkeypatch.setattr(apply_jobs, "build_provider", forbid_generation_provider)
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("OPENAI_MODEL", "")
+    flags = ["--matcher", "classifier"] if selection == "flag" else []
+    if selection == "environment":
+        monkeypatch.setenv("APPLICATION_MATCHER", "classifier")
+    elif selection == "default":
+        monkeypatch.delenv("APPLICATION_MATCHER", raising=False)
+        monkeypatch.setattr("dotenv.load_dotenv", lambda **kwargs: False)
+
+    assert apply_jobs.main(prepare_command(workspace, *flags, "--match-only", "--limit", "1")) == 0
+
+    record = ApplicationLedger(workspace.output / "applications.db").list()[0]
+    assert selected == ["classifier"]
+    assert len(matcher.calls) == 1
+    assert record["status"] == "matched"
+    assert record["decision"]["verdict"] == "APPLY"
+    assert record["artifacts"] == {}
+    assert not list(workspace.output.rglob("cv.*"))
+    assert '"requests": 0' in capsys.readouterr().out
+
+
+def test_explicit_llm_matcher_overrides_classifier_environment(workspace, monkeypatch, external_calls_forbidden):
+    monkeypatch.setenv("APPLICATION_MATCHER", "classifier")
+    write_job(workspace.jobs)
+    calls = []
+    original = apply_jobs.build_matcher
+    def build(name):
+        calls.append(name)
+        return original(name)
+    monkeypatch.setattr(apply_jobs, "build_matcher", build)
+
+    assert apply_jobs.main(prepare_command(workspace, "--matcher", "llm")) == 0
+
+    assert calls == ["llm"]
+    assert len(external_calls_forbidden) == 1
+
+
+def test_classifier_failure_does_not_fall_back_to_llm_or_construct_provider(workspace, monkeypatch):
+    write_full_job(workspace)
+    matcher = OfflineMatcher(failure=RuntimeError("Classifier unavailable"))
+    monkeypatch.setattr(apply_jobs, "build_matcher", lambda name: matcher)
+    monkeypatch.setattr(apply_jobs, "build_provider", forbid_generation_provider)
+
+    assert apply_jobs.main(prepare_command(workspace, "--matcher", "classifier")) == 1
+
+    record = ApplicationLedger(workspace.output / "applications.db").list()[0]
+    assert record["status"] == "failed"
+    assert len(matcher.calls) == 1
+    assert not record["artifacts"]
+
+
+def test_classifier_apply_constructs_generator_only_for_tailoring_and_audit(workspace, monkeypatch):
+    from app.applications.cv_evidence import ReferencedCV
+    from app.applications.models import CVEvaluation
+
+    write_full_job(workspace)
+    matcher = OfflineMatcher()
+    monkeypatch.setattr(apply_jobs, "build_matcher", lambda name: matcher)
+    constructed = []
+    schemas = []
+    class Generator:
+        name = "ollama"
+        model = "offline-qwen"
+
+        def __init__(self):
+            self.usage = {"requests": 0, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
+        def generate_structured(self, *, prompt, schema, system_prompt):
+            self.usage["requests"] += 1
+            schemas.append(schema)
+            if schema is ReferencedCV:
+                payload = json.loads(prompt)
+                assert "master_cv" not in payload
+                assert payload["master_cv_sources"] == [
+                    {"source_id": f"S{index:04d}", "text": text}
+                    for index, text in enumerate(MASTER_CV.splitlines(), start=1)
+                ]
+                def entry(text, source_id, style="paragraph"):
+                    return {"text": text, "style": style, "evidence_ids": [source_id]}
+                return schema.model_validate({"sections": [
+                    {"heading": "Contact", "entries": [
+                        entry("Alex Example", "S0001"), entry("alex@example.test", "S0002"),
+                    ]},
+                    {"heading": "Experience", "entries": [
+                        entry("Built Python and SQL data pipelines.", "S0003", "bullet"),
+                    ]},
+                ]})
+            assert schema is CVEvaluation
+            assert json.loads(prompt)["master_cv"] == MASTER_CV
+            return schema.model_validate({
+                "requirement_coverage": 90, "clarity": 90, "factual_consistency": True,
+                "unsupported_claims": [], "missing_critical_information": [], "improvements": [],
+            })
+    def build(name, model):
+        constructed.append((name, model))
+        assert len(matcher.calls) == 1
+        return Generator()
+    monkeypatch.setattr(apply_jobs, "build_provider", build)
+
+    assert apply_jobs.main(prepare_command(
+        workspace, "--matcher", "classifier", "--provider", "ollama", "--model", "offline-qwen", "--max-revisions", "0",
+    )) == 0
+
+    record = ApplicationLedger(workspace.output / "applications.db").list()[0]
+    assert record["status"] == "ready"
+    assert constructed == [("ollama", "offline-qwen")]
+    assert schemas == [ReferencedCV, CVEvaluation]
+    assert Path(record["artifacts"]["pdf"]).is_file()
+    assert Path(record["artifacts"]["source_catalog"]).is_file()
+
+
+@pytest.mark.parametrize("matcher,match_only,expected", [
+    ("classifier", False, 2), ("classifier", True, 0),
+    ("llm", False, 3), ("llm", True, 1),
+])
+def test_dry_run_reports_generation_call_budget_for_selected_matcher(workspace, monkeypatch, capsys, matcher, match_only, expected):
+    write_full_job(workspace)
+    monkeypatch.setattr(apply_jobs, "build_matcher", forbid_generation_provider)
+    monkeypatch.setattr(apply_jobs, "build_provider", forbid_generation_provider)
+    options = ["--matcher", matcher, "--provider", "ollama", "--limit", "1", "--max-revisions", "0", "--dry-run"]
+    if match_only:
+        options.append("--match-only")
+
+    assert apply_jobs.main(prepare_command(workspace, *options)) == 0
+
+    output = capsys.readouterr().out
+    assert f"Maximum logical Ollama (local) calls: {expected};" in output
+    assert not workspace.output.exists()
+
+
+def test_classifier_doctor_is_dependency_only_and_describes_pretrained_baseline(monkeypatch, capsys):
+    checked = []
+    def spec(name):
+        checked.append(name)
+        return object()
+    monkeypatch.setattr(apply_jobs.importlib.util, "find_spec", spec)
+    monkeypatch.setattr(apply_jobs, "build_matcher", forbid_generation_provider)
+    monkeypatch.setattr(apply_jobs, "build_provider", forbid_generation_provider)
+
+    assert apply_jobs.main(["doctor", "--provider", "ollama", "--matcher", "classifier"]) == 0
+
+    output = capsys.readouterr().out
+    assert {"torch", "transformers", "sentencepiece"} <= set(checked)
+    assert "pretrained NLI plus rules" in output
+    assert "no validated custom CV-matching checkpoint is supplied" in output
+    assert "does not load or verify model files" in output
+
+
+def test_invalid_matcher_environment_rejected_before_dry_run(workspace, monkeypatch):
+    monkeypatch.setenv("APPLICATION_MATCHER", "automatic-cloud-fallback")
+    monkeypatch.setattr(apply_jobs, "build_provider", forbid_generation_provider)
+
+    with pytest.raises(SystemExit) as error:
+        apply_jobs.main(prepare_command(workspace, "--dry-run"))
+
+    assert error.value.code == 2
+
+
+def test_classifier_doctor_missing_sentencepiece_is_advisory(monkeypatch, capsys):
+    monkeypatch.setattr(apply_jobs.importlib.util, "find_spec", lambda name: None if name == "sentencepiece" else object())
+    monkeypatch.setattr(apply_jobs, "build_matcher", forbid_generation_provider)
+    monkeypatch.setattr(apply_jobs, "build_provider", forbid_generation_provider)
+
+    assert apply_jobs.main(["doctor", "--provider", "ollama", "--matcher", "classifier"]) == 0
+
+    assert "sentencepiece: optional; only needed for some tokenizer formats" in capsys.readouterr().out

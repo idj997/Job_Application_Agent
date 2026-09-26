@@ -16,6 +16,7 @@ class Preferences(StrictModel):
     minimum_salary: int | None = Field(default=None, ge=0)
     salary_currency: str = "GBP"
     requires_sponsorship: bool | None = None
+    sponsorship_exempt_locations: list[str] = Field(default_factory=list)
     hard_constraints: list[str] = Field(default_factory=list)
 
     def constraints(self) -> dict[str, str]:
@@ -33,6 +34,13 @@ class Preferences(StrictModel):
             )
         if self.requires_sponsorship is True:
             checks["sponsorship"] = "Employer must explicitly offer suitable visa sponsorship."
+            if self.sponsorship_exempt_locations:
+                checks["sponsorship"] += (
+                    " Sponsorship is not required for a role explicitly based in: "
+                    + ", ".join(self.sponsorship_exempt_locations)
+                    + ". Check the actual work location, not company headquarters; "
+                    "ambiguous or multi-location eligibility is UNKNOWN."
+                )
         for index, constraint in enumerate(self.hard_constraints):
             checks[f"custom_{index + 1}"] = constraint
         return checks
@@ -62,6 +70,7 @@ class ConstraintCheck(StrictModel):
     constraint_id: str
     status: Literal["PASS", "FAIL", "UNKNOWN"]
     job_evidence: str | None
+    job_evidence_source: Literal["description", "title", "location"] = "description"
     explanation: str
 
 

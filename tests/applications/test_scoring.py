@@ -3,7 +3,7 @@ from pydantic import ValidationError
 
 from app.applications.models import (
     ConstraintCheck, CVEntry, CVEvaluation, CVSection, MatchAssessment,
-    RequirementMatch, TailoredCV,
+    Preferences, RequirementMatch, TailoredCV,
 )
 from app.scoring import cv_ready, cv_score, decide, is_quote, validate_cv
 
@@ -75,6 +75,27 @@ def test_match_below_threshold_skips_only_after_mandatory_checks_pass():
 
     assert result.score == 62
     assert result.verdict == "SKIP"
+
+
+@pytest.mark.parametrize("recommendation", ["APPLY", "SKIP", "REVIEW"])
+def test_classifier_verdict_does_not_depend_on_recommendation(recommendation):
+    response = assessment(recommended_verdict=recommendation)
+    assert decide(response, CV, JOB, set(), use_recommendation=False).verdict == "APPLY"
+
+
+def test_classifier_uncertainties_block_apply_despite_perfect_score():
+    response = assessment(uncertainties=["Required qualification needs checking."])
+    result = decide(response, CV, JOB, set(), use_recommendation=False)
+    assert result.score == 100
+    assert result.verdict == "REVIEW"
+
+
+def test_sponsorship_exemption_is_an_explicit_profile_setting():
+    preferences = Preferences(requires_sponsorship=True, sponsorship_exempt_locations=["India"])
+    check = preferences.constraints()["sponsorship"]
+    assert "India" in check and "UNKNOWN" in check
+    assert preferences.model_dump()["sponsorship_exempt_locations"] == ["India"]
+    assert "sponsorship" not in Preferences(sponsorship_exempt_locations=["India"]).constraints()
 
 
 @pytest.mark.parametrize("status", ["UNKNOWN", "MISSING", "PARTIAL"])

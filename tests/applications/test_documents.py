@@ -49,6 +49,81 @@ def test_export_round_trip_keeps_text_unicode_and_literal_markup(tmp_path):
     assert sum(p.style.name == "List Bullet" for p in document.paragraphs) == 2
 
 
+def test_export_keeps_plain_entry_labels_with_first_bullet_only(tmp_path, monkeypatch):
+    from docx import Document
+    from reportlab.platypus import SimpleDocTemplate
+
+    markdown = """# Candidate
+
+Ordinary summary paragraph.
+
+CPU Engineer | Example & <Company>
+
+- First role achievement.
+- Second role achievement.
+
+Independent cache project
+- First project result.
+- Second project result.
+
+Unrelated paragraph.
+
+Final paragraph.
+"""
+    pdf_blocks = []
+    original_build = SimpleDocTemplate.build
+
+    def capture_build(self, flowables, *args, **kwargs):
+        pdf_blocks.extend(
+            (item.getPlainText(), bool(item.getKeepWithNext()))
+            for item in flowables
+        )
+        return original_build(self, flowables, *args, **kwargs)
+
+    monkeypatch.setattr(SimpleDocTemplate, "build", capture_build)
+    paths = export_cv(markdown, tmp_path / "application")
+    docx_paragraphs = Document(paths["docx"]).paragraphs
+    expected_labels = {
+        "CPU Engineer | Example & <Company>",
+        "Independent cache project",
+    }
+
+    for paragraph in docx_paragraphs[1:]:
+        assert bool(paragraph.paragraph_format.keep_with_next) == (
+            paragraph.text in expected_labels
+        )
+    for text, keep_with_next in pdf_blocks[1:]:
+        assert keep_with_next == (text in expected_labels)
+
+    assert [p.text for p in docx_paragraphs] == [text for text, _ in pdf_blocks]
+    for extension in ("docx", "pdf"):
+        text = " ".join(read_cv(paths[extension]).split())
+        for label in expected_labels:
+            assert label in text
+    assert read_cv(paths["markdown"]) == markdown.strip()
+
+
+@pytest.mark.parametrize("filler_count,expected_entry_page", [(37, 0), (38, 1)])
+def test_pdf_entry_label_and_first_bullet_share_page_at_boundary(
+    tmp_path, filler_count, expected_entry_page
+):
+    from pypdf import PdfReader
+
+    # With the normal A4 layout, the first case fits just the label and first
+    # bullet; adding one body line must move both onto the next page together.
+    markdown = "\n\n".join(
+        f"Filler paragraph {index}." for index in range(filler_count)
+    )
+    markdown += "\n\nRole label\n\n- First role bullet.\n- Second role bullet.\n"
+    paths = export_cv(markdown, tmp_path / "application")
+    pages = [page.extract_text() for page in PdfReader(paths["pdf"]).pages]
+
+    assert len(pages) == 2
+    assert "Role label" in pages[expected_entry_page]
+    assert "First role bullet." in pages[expected_entry_page]
+    assert "Second role bullet." in pages[1]
+
+
 def test_read_docx_preserves_paragraph_and_table_order(tmp_path):
     from docx import Document
 

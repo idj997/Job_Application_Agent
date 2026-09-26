@@ -13,6 +13,7 @@
     "minimum_salary": null,
     "salary_currency": "GBP",
     "requires_sponsorship": null,
+    "sponsorship_exempt_locations": [],
     "hard_constraints": []
   }
 }

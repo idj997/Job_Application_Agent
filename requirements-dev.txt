@@ -1,3 +1,4 @@
-# Tests do not require Ollama or the local classifier model stack.
+# Tests use mocked SDKs: no running Ollama server or classifier models required.
 -r requirements-openai.txt
+-r requirements-local-applications.txt
 pytest>=8,<10

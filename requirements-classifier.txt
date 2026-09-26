@@ -1,0 +1,7 @@
+# Optional matching baseline libraries; model weights must already be cached.
+# Select the appropriate CPU/CUDA PyTorch wheel for your platform before install.
+# This is not a custom trained CV-matching checkpoint or a training runner.
+torch>=2.2,<3
+transformers>=4.45,<6
+# Recommended for tokenizer compatibility; not needed by every cached tokenizer.
+sentencepiece>=0.2,<1

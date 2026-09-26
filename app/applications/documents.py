@@ -259,8 +259,18 @@ def export_cv(markdown: str, output_dir: Path | str) -> dict[str, str]:
         "CVBullet", parent=paragraph_style, leftIndent=12, firstLineIndent=0,
         bulletIndent=0, bulletFontName=regular_font.fontName, bulletFontSize=10,
     )
+    entry_style = ParagraphStyle(
+        "CVEntryLabel", parent=paragraph_style, keepWithNext=True,
+    )
     story = []
-    for kind, level, value in blocks:
+    for index, (kind, level, value) in enumerate(blocks):
+        # Role/project labels often use ordinary paragraphs. Keep just the label
+        # with its first bullet, without joining the rest of the list together.
+        is_entry_label = (
+            kind == "paragraph"
+            and index + 1 < len(blocks)
+            and blocks[index + 1][0] == "bullet"
+        )
         if kind == "heading":
             size = 18 if level == 1 else 13 if level == 2 else 11
             style = ParagraphStyle(
@@ -273,9 +283,11 @@ def export_cv(markdown: str, output_dir: Path | str) -> dict[str, str]:
             style = bullet_style
             docx_style = "List Bullet"
         else:
-            style = paragraph_style
+            style = entry_style if is_entry_label else paragraph_style
             docx_style = "Normal"
-        document.add_paragraph(value, style=docx_style)
+        paragraph = document.add_paragraph(value, style=docx_style)
+        if is_entry_label:
+            paragraph.paragraph_format.keep_with_next = True
         story.append(Paragraph(escape(value), style, bulletText="•" if kind == "bullet" else None))
 
     docx_buffer = BytesIO()
