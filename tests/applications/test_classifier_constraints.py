@@ -4,8 +4,19 @@ from app.applications.classifier_constraints import check_constraints
 from app.applications.models import CandidateProfile, Preferences
 
 
-CPU_ROLES = ["CPU engineer", "GPU engineer", "CPU/GPU architecture or microarchitecture engineer", "CPU/GPU systems performance engineer"]
-AI_ROLES = ["AI engineer", "Machine learning engineer", "LLM engineer", "Data scientist", "AI/ML research engineer or applied scientist"]
+CPU_ROLES = [
+    "CPU Performance Engineer", "Processor Performance Engineer",
+    "Systems Performance Engineer", "Software Performance Engineer",
+    "Performance Tools Engineer", "CPU Performance Architect",
+]
+AI_ROLES = [
+    "AI Engineer", "Machine Learning Engineer", "ML Research Engineer",
+    "Research Engineer", "Applied Scientist", "LLM Evaluation Engineer",
+]
+DATA_ROLES = [
+    "Data Scientist", "Senior Data Scientist", "Applied Data Scientist",
+    "Decision Scientist", "Research Data Scientist",
+]
 
 
 def checks(description, *, title="", location="", metadata=None, **preferences):
@@ -21,49 +32,82 @@ def checks(description, *, title="", location="", metadata=None, **preferences):
     return {result.constraint_id: result for result in results}
 
 
-@pytest.mark.parametrize("title", ["CPU Engineer", "Senior GPU Architecture Engineer", "Principal CPU Microarchitecture Engineer", "GPU Systems Performance Engineer"])
-def test_hardware_technical_roles_match_cpu_targets(title):
-    assert checks(f"Job title: {title}\nBuild processor systems.", title=title, target_roles=CPU_ROLES)["role"].status == "PASS"
+@pytest.mark.parametrize("title", [
+    "CPU Performance Engineer", "Senior Processor Performance Engineer",
+    "Systems Performance Engineer", "Software Performance Engineer",
+    "Performance Tools Engineer",
+])
+def test_performance_roles_match_cpu_system_performance_targets(title):
+    assert checks(f"Job title: {title}\nProfile workloads and analyze performance.", title=title,
+                  target_roles=CPU_ROLES)["role"].status == "PASS"
 
 
-@pytest.mark.parametrize("title", ["AI Engineer", "Senior Machine Learning Engineer", "LLM Engineer", "Data Scientist", "Applied Scientist"])
-def test_ai_technical_roles_match_ai_targets(title):
-    assert checks(f"Job title: {title}\nBuild learning systems.", title=title, target_roles=AI_ROLES)["role"].status == "PASS"
+@pytest.mark.parametrize("title", [
+    "AI Engineer", "Senior Machine Learning Engineer", "ML Research Engineer",
+    "LLM Evaluation Engineer", "Applied Scientist",
+])
+def test_ai_ml_roles_match_ai_ml_targets(title):
+    assert checks(f"Job title: {title}\nBuild learning systems.", title=title,
+                  target_roles=AI_ROLES)["role"].status == "PASS"
+
+
+@pytest.mark.parametrize("title", [
+    "Data Scientist", "Senior Data Scientist", "Applied Data Scientist",
+    "Decision Scientist", "Research Data Scientist",
+])
+def test_data_science_roles_match_data_science_targets(title):
+    assert checks(f"Job title: {title}\nAnalyze data and build statistical models.", title=title,
+                  target_roles=DATA_ROLES)["role"].status == "PASS"
 
 
 @pytest.mark.parametrize("title,targets", [
-    ("Data Scientist", CPU_ROLES), ("Machine Learning Engineer", CPU_ROLES),
-    ("CPU Architecture Engineer", AI_ROLES),
+    ("Data Scientist", CPU_ROLES),
+    ("Machine Learning Engineer", CPU_ROLES),
+    ("CPU Performance Engineer", AI_ROLES),
+    ("Machine Learning Engineer", DATA_ROLES),
+    ("Data Scientist", AI_ROLES),
 ])
-def test_explicitly_different_role_family_fails(title, targets):
+def test_explicitly_different_refined_role_family_fails(title, targets):
     assert checks(f"Job title: {title}", title=title, target_roles=targets)["role"].status == "FAIL"
 
 
 @pytest.mark.parametrize("title,targets", [
-    ("AI Product Manager", AI_ROLES), ("AI Sales Engineer", AI_ROLES),
-    ("AI Recruiter", AI_ROLES), ("GPU Sales Engineer", CPU_ROLES),
+    ("AI Product Manager", AI_ROLES),
+    ("AI Sales Engineer", AI_ROLES),
+    ("AI Recruiter", AI_ROLES),
+    ("GPU Sales Engineer", CPU_ROLES),
+    ("CUDA Engineer", CPU_ROLES),
+    ("Distributed Systems Engineer", AI_ROLES),
     ("Performance Engineer", CPU_ROLES),
 ])
-def test_related_words_do_not_establish_a_technical_target_role(title, targets):
+def test_related_words_do_not_establish_a_target_profile(title, targets):
     assert checks(f"Job title: {title}", title=title, target_roles=targets)["role"].status == "UNKNOWN"
 
 
 def test_explicit_title_field_can_establish_role_with_verifiable_source():
-    result = checks("Work with a team of GPU architects.", title="GPU Engineer", target_roles=CPU_ROLES)["role"]
+    result = checks(
+        "Profile Linux workloads and investigate bottlenecks.",
+        title="CPU Performance Engineer",
+        target_roles=CPU_ROLES,
+    )["role"]
     assert result.status == "PASS"
     assert result.job_evidence_source == "title"
-    assert result.job_evidence == "GPU Engineer"
+    assert result.job_evidence == "CPU Performance Engineer"
 
 
 def test_abbreviated_role_description_agrees_with_structured_title():
-    result = checks("The company is seeking a ML Engineer to join our team.",
-                    title="Machine Learning Engineer", target_roles=AI_ROLES)["role"]
+    result = checks(
+        "The company is seeking a ML Engineer to join our team.",
+        title="Machine Learning Engineer",
+        target_roles=AI_ROLES,
+    )["role"]
     assert result.status == "PASS"
     assert result.job_evidence_source == "title"
 
 
 @pytest.mark.parametrize("description", [
-    "Job title: GPU Engineer", "We are seeking a GPU Engineer to join our team.",
+    "Job title: AI Engineer",
+    "We are seeking a AI Engineer to join our team.",
     "We are not hiring a Machine Learning Engineer.",
     "We do not hire a Machine Learning Engineer.",
     "We do not seek a Machine Learning Engineer.",
@@ -77,7 +121,8 @@ def test_title_field_does_not_override_conflicting_or_uncertain_description(desc
 
 
 @pytest.mark.parametrize("title", [
-    "Not a Machine Learning Engineer", "Machine Learning Engineer or Data Scientist",
+    "Not a Machine Learning Engineer",
+    "Machine Learning Engineer or Data Scientist",
     "Potentially Machine Learning Engineer",
 ])
 def test_ambiguous_structured_title_is_unknown(title):
