@@ -31,14 +31,17 @@ def selected_matcher(requested: str | None) -> str:
     from dotenv import load_dotenv
     load_dotenv(override=False)
     name = (requested or os.getenv("APPLICATION_MATCHER", "classifier")).strip().lower()
-    if name not in {"classifier", "llm"}:
-        raise ValueError("APPLICATION_MATCHER must be classifier or llm, or pass --matcher explicitly.")
+    if name not in {"classifier", "central", "llm"}:
+        raise ValueError("APPLICATION_MATCHER must be classifier, central or llm, or pass --matcher explicitly.")
     return name
 
 
 def build_matcher(name: str):
     if name == "llm":
         return None
+    if name == "central":
+        from app.applications.central_requirements import CentralMatcher
+        return CentralMatcher()
     from app.applications.classifier_matching import ClassifierMatcher
     return ClassifierMatcher()
 
@@ -308,7 +311,7 @@ def prepare(args: argparse.Namespace) -> int:
                 f"maximum {selection_summary['word_budget']} words."
             )
             print("Selection plan source/job fingerprints and bounds validated against these exact saved inputs.")
-        matching_calls = 1 if matcher_name == "llm" else 0
+        matching_calls = 1 if matcher_name in {"llm", "central"} else 0
         drafts = 0 if args.match_only else args.max_revisions + 1
         writer_calls = 2 * selection_summary["rewrite_slots"] if args.entry_by_entry else drafts
         audit_calls = 1 if args.entry_by_entry else drafts
@@ -330,6 +333,8 @@ def prepare(args: argparse.Namespace) -> int:
             print("Manual tailoring only: the saved classifier REVIEW must match these exact inputs; drafts cannot open applications.")
         if matcher_name == "classifier":
             print("Classifier matching uses local cached NLI weights; dry run does not load them.")
+        elif matcher_name == "central":
+            print("Central matching uses the local cached NLI baseline plus one local Ollama central-requirement selection per job.")
         print("Constraints: " + json.dumps(profile.preferences.constraints(), ensure_ascii=False))
         print("Dry run complete. No network requests, model calls, or application writes.")
         return 0
@@ -448,8 +453,10 @@ def doctor(provider: str | None = None, matcher: str | None = None, *,
     modules = [name, "pydantic", "dotenv", "bs4", "pypdf", "docx", "reportlab", "playwright"]
     if critic_model is not None and "ollama" not in modules:
         modules.append("ollama")
-    if matcher_name == "classifier":
+    if matcher_name in {"classifier", "central"}:
         modules.extend(["torch", "transformers"])
+    if matcher_name == "central" and "ollama" not in modules:
+        modules.append("ollama")
     for module in modules:
         present = importlib.util.find_spec(module) is not None
         print(f"{module}: {'installed' if present else 'missing'}")
@@ -471,10 +478,12 @@ def doctor(provider: str | None = None, matcher: str | None = None, *,
         print("CV_CRITIC_TIMEOUT_SECONDS: " + str(settings["timeout_seconds"]))
         print("Critic weights: must already be installed locally; doctor does not contact Ollama or verify model files.")
         print("Critic scores are advisory CV quality estimates, not validated ATS scores.")
-    if matcher_name == "classifier":
+    if matcher_name in {"classifier", "central"}:
         sentencepiece_present = importlib.util.find_spec("sentencepiece") is not None
         print("sentencepiece: " + ("installed" if sentencepiece_present else "optional; only needed for some tokenizer formats"))
         print("Matching baseline: pretrained NLI plus rules; no validated custom CV-matching checkpoint is supplied.")
+        if matcher_name == "central":
+            print("Central policy: local Ollama selects 2-4 central job requirements only; NLI/rules still verify CV evidence.")
         print("REQUIREMENT_NLI_MODEL: " + (os.getenv("REQUIREMENT_NLI_MODEL", "").strip() or "cross-encoder/nli-deberta-v3-small (default)"))
         print("REQUIREMENT_NLI_REVISION: " + ("configured" if os.getenv("REQUIREMENT_NLI_REVISION", "").strip() else "default cached revision"))
         print("REQUIREMENT_NLI_DEVICE: " + (os.getenv("REQUIREMENT_NLI_DEVICE", "").strip() or "cpu (default)"))
@@ -492,7 +501,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--cv", type=Path)
     run.add_argument("--profile", type=Path)
     run.add_argument("--provider", choices=["openai", "ollama"], help="Model backend; defaults to APPLICATION_PROVIDER, then openai.")
-    run.add_argument("--matcher", choices=["classifier", "llm"], help="Matching backend; defaults to APPLICATION_MATCHER, then classifier. llm explicitly opts into model-generated matching.")
+    run.add_argument("--matcher", choices=["classifier", "central", "llm"], help="Matching backend; defaults to APPLICATION_MATCHER, then classifier. llm explicitly opts into model-generated matching.")
     run.add_argument("--match-only", action="store_true", help="Save match decisions without CV generation; classifier mode does not construct a generation provider.")
     run.add_argument("--manual-approval-note", help="Explicitly approve one saved classifier REVIEW for tailoring only. Requires one --job, --limit 1 and --no-enrich; never makes the draft browser-ready.")
     run.add_argument("--selection-plan", type=Path, help="Reviewed source/job-bound CV selection JSON. Requires one saved --job, --limit 1 and --no-enrich; validates selected entries and word limits before generation.")
@@ -520,7 +529,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--dry-run", action="store_true", help="Validate CV and preview work without network or model calls.")
     health = sub.add_parser("doctor", help="Check selected-provider dependencies and configuration without showing secrets.")
     health.add_argument("--provider", choices=["openai", "ollama"])
-    health.add_argument("--matcher", choices=["classifier", "llm"])
+    health.add_argument("--matcher", choices=["classifier", "central", "llm"])
     health.add_argument("--model", help="Writer model override for configuration checks.")
     health_critique = health.add_mutually_exclusive_group()
     health_critique.add_argument("--critic-model", help="Inspect separate local critic configuration without contacting Ollama.")
