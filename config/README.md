@@ -11,8 +11,7 @@ python -m scripts.collect_role_corpus --list-roles
 
 python -m scripts.collect_role_corpus \
   --sources adzuna \
-  --roles data_engineering data_science ai_engineering machine_learning \
-          generative_ai cpu_engineering gpu_engineering \
+  --roles cpu_system_performance ai_ml_research_engineering data_science_applied_ml \
   --location "United Kingdom" \
   --queries-per-role 1 \
   --limit-per-query 5 \
@@ -28,3 +27,16 @@ to the failed source are suppressed for that run.
 Employer ATS sources still need their employer identifier (`--board-token` for
 Greenhouse or `--company-slug` for Lever). Search APIs such as Adzuna are a
 better first choice for broad occupational coverage.
+
+
+## Direct-match search policy
+
+The default role catalog is intentionally narrow. It reflects three target profiles:
+
+- `cpu_system_performance`: CPU/processor/systems performance, profiling, workload analysis and performance tooling.
+- `ai_ml_research_engineering`: ML research engineering, optimization, evaluation and experimentation.
+- `data_science_applied_ml`: data science, statistics, experimentation and applied ML.
+
+Do not add broad CUDA, distributed-systems, DevOps, generic backend, verification or security searches merely to increase vacancy volume. Those roles can still be supplied manually when there is a reason to review them.
+
+Use the `central` matcher for the direct-match policy. It asks a local Ollama model to identify only the 2-4 central technical requirements from requirements already extracted from the advert. The existing classifier/NLI evidence path then verifies whether the master CV actually supports them. A central gap cannot become an automatic APPLY merely because secondary skills produce a high numeric score.
