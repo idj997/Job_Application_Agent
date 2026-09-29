@@ -89,11 +89,12 @@ def decide(
 
     unknowns = [item.explanation for item in assessment.constraint_checks if item.status == "UNKNOWN"]
     core_gaps = [item.requirement for item in assessment.requirements if item.importance == "CORE" and item.status != "MET"]
-    if unknowns or core_gaps:
-        reasons = unknowns + (
-            ["Unresolved mandatory requirements: " + ", ".join(core_gaps)] if core_gaps else []
+    if unknowns:
+        return result(
+            "REVIEW",
+            unknowns,
+            "UNRESOLVED" if assessment.central_policy_applied else None,
         )
-        return result("REVIEW", reasons, "UNRESOLVED" if assessment.central_policy_applied else None)
 
     if assessment.central_policy_applied:
         central = [item for item in assessment.requirements if item.central]
@@ -118,6 +119,12 @@ def decide(
                 ["Central technical requirement gap: " + ", ".join(gaps)],
                 "STRETCH",
             )
+        if core_gaps:
+            return result(
+                "REVIEW",
+                ["Unresolved mandatory requirements: " + ", ".join(core_gaps)],
+                "UNRESOLVED",
+            )
         if assessment.uncertainties:
             return result("REVIEW", assessment.uncertainties, "UNRESOLVED")
         if score < threshold:
@@ -130,6 +137,12 @@ def decide(
             "APPLY",
             ["All central technical requirements are directly supported by verified CV evidence and the configured constraints passed."],
             "DIRECT",
+        )
+
+    if core_gaps:
+        return result(
+            "REVIEW",
+            ["Unresolved mandatory requirements: " + ", ".join(core_gaps)],
         )
 
     if not use_recommendation and assessment.uncertainties:
