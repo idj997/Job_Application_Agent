@@ -524,7 +524,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--limit", type=int, default=5)
     run.add_argument("--description-file", type=Path, help="Full employer description for one --job or --url.")
     run.add_argument("--no-enrich", action="store_true", help="Leave summary-only jobs for review without network enrichment.")
-    run.add_argument("--match-threshold", type=int, default=70)
+    run.add_argument("--match-threshold", type=int, default=80)
     run.add_argument("--cv-threshold", type=int, default=75)
     run.add_argument("--max-revisions", type=int, choices=[0, 1, 2], default=1)
     run.add_argument("--retry", action="store_true", help="Reassess saved preparation; never retries submitted/uncertain jobs.")
