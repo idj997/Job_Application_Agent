@@ -126,18 +126,44 @@ def _destination_agrees(destination: str, location: str) -> bool:
                 and all(_countries(part) for part in parts[1:]))
 
 
-def _role_family(title: str) -> str | None:
-    if re.search(r"\b(?:sales|recruit(?:er|ment|ing)?|marketing|account|manager|management)\b", title, re.I):
+def role_family(title: str) -> str | None:
+    """Map only well-scoped target titles to the three application profiles.
+
+    Keep this intentionally conservative. Shared words such as "performance",
+    "AI", or "research" are not enough on their own to establish equivalence.
+    """
+    if re.search(r"\b(?:sales|recruit(?:er|ment|ing)?|marketing|account|product manager|project manager)\b", title, re.I):
         return None
-    if re.search(r"\b(?:cpu|gpu|processor|microarchitecture)\b", title, re.I) and re.search(
-        r"\b(?:engineer|engineering|architect|architecture|microarchitecture|performance|researcher)\b", title, re.I
+
+    # Hardware design/verification and GPU-kernel specialties are deliberately
+    # not treated as systems-performance equivalents.
+    if re.search(r"\b(?:rtl|verification|physical design|logic design|cuda|triton|gpu kernel)\b", title, re.I):
+        return None
+
+    if (
+        re.search(r"\b(?:cpu|processor|systems?|software|workload)\b", title, re.I)
+        and re.search(r"\bperformance\b", title, re.I)
+        and re.search(r"\b(?:engineer|engineering|architect|analysis|analyst|tools?)\b", title, re.I)
+    ) or re.search(r"\bperformance tools? engineer\b", title, re.I):
+        return "cpu_system_performance"
+
+    if re.search(
+        r"\b(?:data scientist|data science|decision scientist|research data scientist|applied data scientist)\b",
+        title, re.I,
     ):
-        return "cpu_gpu"
-    if (re.search(r"\b(?:ai|ml|llm|artificial intelligence|machine learning|data scien(?:tist|ce)|applied scientist)\b", title, re.I)
-            and re.search(r"\b(?:engineer|engineering|scientist|researcher)\b", title, re.I)):
-        return "ai_ml_data_science"
+        return "data_science_applied_ml"
+
+    if (
+        re.search(r"\b(?:machine learning|\bml\b|artificial intelligence|\bai\b|\bllm\b)\b", title, re.I)
+        and re.search(r"\b(?:engineer|engineering|researcher|scientist)\b", title, re.I)
+    ) or re.search(r"\bapplied scientist\b", title, re.I):
+        return "ai_ml_research_engineering"
+
     return None
 
+
+# Backward-compatible private alias for older imports/tests.
+_role_family = role_family
 
 def _normal_role(title: str) -> str:
     title = re.sub(r"\b(?:senior|junior|principal|staff|lead|graduate)\b", "", title, flags=re.I)
