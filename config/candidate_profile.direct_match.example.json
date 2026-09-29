@@ -1,0 +1,41 @@
+{
+  "cv_path": "../data/cv/master.md",
+  "name": null,
+  "first_name": null,
+  "last_name": null,
+  "email": null,
+  "phone": null,
+  "location": "United Kingdom",
+  "preferences": {
+    "target_roles": [
+      "CPU Performance Engineer",
+      "Processor Performance Engineer",
+      "Systems Performance Engineer",
+      "Software Performance Engineer",
+      "Performance Tools Engineer",
+      "CPU Performance Architect",
+      "Machine Learning Engineer",
+      "ML Research Engineer",
+      "Research Engineer",
+      "Applied Scientist",
+      "AI Engineer",
+      "Data Scientist",
+      "Senior Data Scientist",
+      "Applied Data Scientist",
+      "Decision Scientist"
+    ],
+    "locations": [
+      "United Kingdom"
+    ],
+    "work_patterns": [
+      "remote",
+      "hybrid",
+      "onsite"
+    ],
+    "minimum_salary": null,
+    "salary_currency": "GBP",
+    "requires_sponsorship": true,
+    "sponsorship_exempt_locations": [],
+    "hard_constraints": []
+  }
+}
