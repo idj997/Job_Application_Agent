@@ -19,20 +19,37 @@ independently.
 | Requirement annotation and dataset preparation | Shared independent research scripts | Shared independent research scripts |
 | Custom classifier training runner | Not implemented | Not implemented |
 
-Matching defaults to `--matcher classifier`: rules plus a cached pretrained NLI
-model, with deterministic verdict gates. It is a baseline, not a custom trained
-or calibrated CV-matching model. The reviewed requirement-importance dataset is
-not a CV-match checkpoint. Uncertain evidence stays REVIEW, and classifier
-failure never switches to an LLM automatically.
+The recommended direct-match workflow uses `--matcher central`: the existing
+rules plus cached pretrained NLI verify CV evidence, while one local Ollama call
+selects only the 2-4 central technical requirements from requirements already
+extracted from the advert. The selector never sees the CV and cannot invent a
+requirement. A central gap therefore cannot be hidden by many secondary matches.
+
+`--matcher classifier` preserves the older no-generative matching baseline.
+Both modes retain deterministic evidence and constraint gates. Neither is a
+custom trained or calibrated hiring model, and uncertain evidence stays REVIEW.
 
 Use `prepare --provider ollama` to write and audit CVs using your installed Qwen model.
 There is no cloud fallback. `--provider openai` explicitly selects the API.
 The provider otherwise comes from `APPLICATION_PROVIDER`, with `openai` as the
 fallback when that setting is absent. `.env.example` selects `ollama`.
-`APPLICATION_MATCHER` selects `classifier` or `llm`, with `classifier` as its
-fallback. `--matcher llm` explicitly restores the older LLM matching path.
+`APPLICATION_MATCHER` selects `central`, `classifier` or `llm`, with
+`classifier` as the code fallback when the setting is absent. The checked-in
+`.env.example` recommends `central`. `--matcher llm` explicitly restores the
+older full-LLM matching path.
 Shared validation rules do not imply equal model accuracy: review generated CVs
 and evidence with either generation provider.
+
+### Direct-match verdicts
+
+With `--matcher central`, decisions also include a fit class:
+
+- **DIRECT**: every selected central technical requirement is MET, mandatory requirements and constraints pass, and the numeric threshold is met.
+- **STRETCH**: one central technical requirement is missing/partial/unknown, with no hard-constraint failure.
+- **POOR**: multiple central requirements are clearly missing, a hard constraint fails, or the score is below threshold after central checks.
+- **UNRESOLVED**: the description, sponsorship, extraction, selector or evidence is too uncertain for a reliable fit decision.
+
+The default role catalog is intentionally focused on CPU/systems performance, AI/ML research engineering, and data science/applied ML.
 
 Drafting selects from the complete master CV using source IDs; the application
 resolves those references into exact quotes and audits their support for each
@@ -59,8 +76,7 @@ for the Python executable and the corresponding PowerShell syntax.
 Both modes need a master CV with extractable text. Default matching needs the
 classifier libraries and cached NLI weights; no classifier training is required.
 Local CV generation needs Ollama and a downloaded Qwen model; OpenAI generation
-needs API credentials and model access. Classifier-only matching needs neither
-generation provider. A graphical
+needs API credentials and model access. Classifier-only matching needs neither generation provider. Central matching additionally needs the configured local Ollama model for requirement selection. A graphical
 desktop is needed only when opening application forms. Job discovery, employer
 pages and first-time downloads require network access; local model prompts stay
 on the configured loopback Ollama server.
@@ -85,7 +101,7 @@ entries, keeping your existing source API keys:
 
 ```dotenv
 APPLICATION_PROVIDER=ollama
-APPLICATION_MATCHER=classifier
+APPLICATION_MATCHER=central
 REQUIREMENT_NLI_MODEL=cross-encoder/nli-deberta-v3-small
 REQUIREMENT_NLI_DEVICE=cpu
 OLLAMA_MODEL=qwen3:8b
