@@ -1,94 +1,44 @@
 {
-  "version": 1,
+  "version": 2,
   "role_families": {
-    "data_engineering": {
-      "display_name": "Data Engineering",
+    "cpu_system_performance": {
+      "display_name": "CPU and Systems Performance",
       "queries": [
-        "data engineer",
-        "analytics engineer",
-        "data platform engineer",
-        "ETL engineer"
+        "CPU performance engineer",
+        "processor performance engineer",
+        "systems performance engineer",
+        "software performance engineer",
+        "performance analysis engineer",
+        "performance tools engineer",
+        "CPU performance architect",
+        "workload performance engineer"
       ]
     },
-    "data_science": {
-      "display_name": "Data Science",
-      "queries": [
-        "data scientist",
-        "applied scientist",
-        "decision scientist",
-        "research data scientist"
-      ]
-    },
-    "ai_engineering": {
-      "display_name": "AI Engineering",
-      "queries": [
-        "AI engineer",
-        "artificial intelligence engineer",
-        "AI platform engineer",
-        "AI infrastructure engineer"
-      ]
-    },
-    "machine_learning": {
-      "display_name": "Machine Learning Engineering",
+    "ai_ml_research_engineering": {
+      "display_name": "AI ML Research and Engineering",
       "queries": [
         "machine learning engineer",
-        "ML engineer",
-        "MLOps engineer",
-        "machine learning platform engineer"
+        "ML research engineer",
+        "research engineer machine learning",
+        "applied scientist machine learning",
+        "AI engineer evaluation",
+        "ML optimization engineer",
+        "machine learning optimization",
+        "LLM evaluation engineer",
+        "AI experimentation engineer"
       ]
     },
-    "generative_ai": {
-      "display_name": "Generative AI",
+    "data_science_applied_ml": {
+      "display_name": "Data Science and Applied ML",
       "queries": [
-        "generative AI engineer",
-        "GenAI engineer",
-        "LLM engineer",
-        "AI research engineer"
-      ]
-    },
-    "cpu_engineering": {
-      "display_name": "CPU Engineering",
-      "queries": [
-        "CPU design engineer",
-        "CPU verification engineer",
-        "processor performance engineer",
-        "microarchitecture engineer"
-      ]
-    },
-    "gpu_engineering": {
-      "display_name": "GPU Engineering",
-      "queries": [
-        "GPU engineer",
-        "GPU compiler engineer",
-        "graphics hardware engineer",
-        "CUDA engineer"
-      ]
-    },
-    "software_engineering": {
-      "display_name": "Software Engineering",
-      "queries": [
-        "backend software engineer",
-        "distributed systems engineer",
-        "Python software engineer",
-        "systems software engineer"
-      ]
-    },
-    "cloud_platform": {
-      "display_name": "Cloud and Platform Engineering",
-      "queries": [
-        "cloud engineer",
-        "platform engineer",
-        "DevOps engineer",
-        "site reliability engineer"
-      ]
-    },
-    "cybersecurity": {
-      "display_name": "Cybersecurity Engineering",
-      "queries": [
-        "security engineer",
-        "cloud security engineer",
-        "application security engineer",
-        "security operations engineer"
+        "data scientist",
+        "senior data scientist",
+        "applied data scientist",
+        "decision scientist",
+        "research data scientist",
+        "data scientist machine learning",
+        "data scientist experimentation",
+        "data scientist optimization"
       ]
     }
   }
