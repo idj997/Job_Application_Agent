@@ -33,6 +33,17 @@ def decide(
         for item in assessment.requirements
     )
     score = round(100 * earned / total) if total else 0
+    profile_family = assessment.profile_family if assessment.central_policy_applied else None
+
+    def result(verdict: str, reasons: list[str], fit_class: str | None = None) -> Decision:
+        return Decision(
+            verdict=verdict,
+            score=score,
+            reasons=reasons,
+            fit_class=fit_class,
+            profile_family=profile_family,
+        )
+
     if not assessment.description_complete:
         errors.append("The job description is incomplete.")
     if not total:
@@ -57,7 +68,7 @@ def decide(
         if evidence_source == "description":
             verified = not item.job_evidence or is_quote(item.job_evidence, job_text)
         else:
-            # Only the deterministic classifier may cite structured job fields.
+            # Only deterministic matchers may cite structured job fields.
             # Full-field equality prevents cherry-picking "UK" from "UK or India".
             field = (job_context or {}).get(evidence_source)
             verified = (
@@ -70,27 +81,69 @@ def decide(
         if not verified:
             errors.append(f"Constraint evidence could not be verified: {item.constraint_id}.")
     if errors:
-        return Decision(verdict="REVIEW", score=score, reasons=errors)
+        return result("REVIEW", errors, "UNRESOLVED" if assessment.central_policy_applied else None)
+
     failures = [item.explanation for item in assessment.constraint_checks if item.status == "FAIL"]
     if failures:
-        return Decision(verdict="SKIP", score=score, reasons=failures)
+        return result("SKIP", failures, "POOR" if assessment.central_policy_applied else None)
+
     unknowns = [item.explanation for item in assessment.constraint_checks if item.status == "UNKNOWN"]
     core_gaps = [item.requirement for item in assessment.requirements if item.importance == "CORE" and item.status != "MET"]
     if unknowns or core_gaps:
-        return Decision(
-            verdict="REVIEW", score=score,
-            reasons=unknowns + (["Unresolved mandatory requirements: " + ", ".join(core_gaps)] if core_gaps else []),
+        reasons = unknowns + (
+            ["Unresolved mandatory requirements: " + ", ".join(core_gaps)] if core_gaps else []
         )
-    if not use_recommendation and assessment.uncertainties:
-        return Decision(verdict="REVIEW", score=score, reasons=assessment.uncertainties)
-    if use_recommendation and assessment.recommended_verdict != "APPLY":
-        return Decision(verdict=assessment.recommended_verdict, score=score, reasons=[assessment.rationale])
-    if score < threshold:
-        return Decision(verdict="SKIP", score=score, reasons=[f"Match score {score} is below your threshold of {threshold}."])
-    reasons = ([assessment.rationale] if use_recommendation else
-        ["Classifier evidence passed the configured match threshold and all mandatory constraints."])
-    return Decision(verdict="APPLY", score=score, reasons=reasons)
+        return result("REVIEW", reasons, "UNRESOLVED" if assessment.central_policy_applied else None)
 
+    if assessment.central_policy_applied:
+        central = [item for item in assessment.requirements if item.central]
+        if not central:
+            return result(
+                "REVIEW",
+                ["No validated set of central technical requirements was established."],
+                "UNRESOLVED",
+            )
+        clear_gaps = [item.requirement for item in central if item.status in {"MISSING", "PARTIAL"}]
+        unknown_central = [item.requirement for item in central if item.status == "UNKNOWN"]
+        if len(clear_gaps) >= 2:
+            return result(
+                "SKIP",
+                ["Multiple central technical requirement gaps: " + ", ".join(clear_gaps)],
+                "POOR",
+            )
+        if clear_gaps or unknown_central:
+            gaps = clear_gaps + unknown_central
+            return result(
+                "REVIEW",
+                ["Central technical requirement gap: " + ", ".join(gaps)],
+                "STRETCH",
+            )
+        if assessment.uncertainties:
+            return result("REVIEW", assessment.uncertainties, "UNRESOLVED")
+        if score < threshold:
+            return result(
+                "SKIP",
+                [f"Match score {score} is below your threshold of {threshold}."],
+                "POOR",
+            )
+        return result(
+            "APPLY",
+            ["All central technical requirements are directly supported by verified CV evidence and the configured constraints passed."],
+            "DIRECT",
+        )
+
+    if not use_recommendation and assessment.uncertainties:
+        return result("REVIEW", assessment.uncertainties)
+    if use_recommendation and assessment.recommended_verdict != "APPLY":
+        return result(assessment.recommended_verdict, [assessment.rationale])
+    if score < threshold:
+        return result("SKIP", [f"Match score {score} is below your threshold of {threshold}."])
+    reasons = (
+        [assessment.rationale]
+        if use_recommendation
+        else ["Classifier evidence passed the configured match threshold and all mandatory constraints."]
+    )
+    return result("APPLY", reasons)
 
 def validate_cv(cv: TailoredCV, master_cv: str) -> list[str]:
     errors = []
