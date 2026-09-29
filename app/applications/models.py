@@ -60,6 +60,7 @@ class CandidateProfile(StrictModel):
 class RequirementMatch(StrictModel):
     requirement: str = Field(min_length=1)
     importance: Literal["CORE", "IMPORTANT", "PREFERRED", "CONTEXTUAL", "NOT_REQUIREMENT"]
+    central: bool = False
     job_evidence: str = Field(min_length=1)
     status: Literal["MET", "PARTIAL", "MISSING", "UNKNOWN"]
     cv_evidence: list[str]
@@ -81,6 +82,13 @@ class MatchAssessment(StrictModel):
     recommended_verdict: Literal["APPLY", "SKIP", "REVIEW"]
     rationale: str
     uncertainties: list[str]
+    central_policy_applied: bool = False
+    profile_family: Literal[
+        "cpu_system_performance",
+        "ai_ml_research_engineering",
+        "data_science_applied_ml",
+        "other",
+    ] | None = None
 
 
 class CVEntry(StrictModel):
@@ -114,3 +122,10 @@ class Decision(StrictModel):
     verdict: Literal["APPLY", "SKIP", "REVIEW"]
     score: int = Field(ge=0, le=100)
     reasons: list[str]
+    fit_class: Literal["DIRECT", "STRETCH", "POOR", "UNRESOLVED"] | None = None
+    profile_family: Literal[
+        "cpu_system_performance",
+        "ai_ml_research_engineering",
+        "data_science_applied_ml",
+        "other",
+    ] | None = None
