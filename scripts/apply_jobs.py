@@ -240,7 +240,9 @@ def _print_record(record: dict) -> None:
     decision = record.get("decision", {})
     cached = " (saved result)" if record.get("cached") else ""
     print(f"{record['job_key'][:12]}  {record['status'].upper():<18} {record.get('company') or ''} — {record.get('title') or ''}{cached}")
-    print(f"  Match: {decision.get('score', '—')}  CV quality: {record.get('cv_score', '—')}")
+    fit = decision.get("fit_class") or "—"
+    family = decision.get("profile_family") or "—"
+    print(f"  Match: {decision.get('score', '—')}  Fit: {fit}  Profile: {family}  CV quality: {record.get('cv_score', '—')}")
     for reason in record.get("reasons", []):
         print("  " + reason)
     if record.get("artifacts", {}).get("pdf"):
